@@ -1,0 +1,359 @@
+# GIAO VIỆC: chỉ dùng dữ liệu E2E, không sửa/xóa dữ liệu thật.
+# Đăng nhập theo auth.curl, tạo session.cookies.txt và lấy <CSRF_TOKEN>.
+# Thay <STAFF_ID>, <WORK_ID>, <PART_ID> bằng UUID trả về từ API.
+# Cập nhật version bằng phiên bản mới nhất mỗi lần thao tác; phiên bản cũ trả 409.
+# no-permission.cookies.txt là phiên của user ngoài phạm vi/không có quyền.
+# Thời gian ví dụ cần đổi sang ngày bạn muốn kiểm tra; +07:00 là giờ Việt Nam.
+# Xác thực bằng cookie phiên HttpOnly.
+
+# [1.1 Thành công tối giản 200/201] Danh sách cá nhân
+curl --location --request GET 'http://localhost:3108/api/work-assignments' \
+  --cookie session.cookies.txt
+
+# [1.2 Thành công đầy đủ] Dùng dữ liệu mới/phiên bản mới nếu kịch bản trước đã thay đổi dữ liệu.
+curl --location --request GET 'http://localhost:3108/api/work-assignments?mode=mine&from=2026-11-01T00%3A00%3A00%2B07%3A00&to=2026-11-07T23%3A59%3A59%2B07%3A00&page=1&limit=20&status=assigned&q=E2E' \
+  --cookie session.cookies.txt
+
+# [1.3 Validation 422]
+curl --location --request GET 'http://localhost:3108/api/work-assignments?mode=sai' \
+  --cookie session.cookies.txt
+
+# [1.4 Bảo mật 401] Thiếu phiên hoặc thay cookie bằng cookie hết hạn.
+curl --location --request GET 'http://localhost:3108/api/work-assignments'
+# Danh sách cá nhân cho mọi user đã đăng nhập; chỉ trả dữ liệu của chính mình.
+
+# [2.1 Thành công tối giản 200/201] Danh sách người nhận: work.assign
+curl --location --request GET 'http://localhost:3108/api/work-assignments/recipients' \
+  --cookie session.cookies.txt
+
+# [2.2 Thành công đầy đủ] Dùng dữ liệu mới/phiên bản mới nếu kịch bản trước đã thay đổi dữ liệu.
+curl --location --request GET 'http://localhost:3108/api/work-assignments/recipients?q=E2E&page=1&limit=50' \
+  --cookie session.cookies.txt
+
+# [2.3 Validation 422]
+curl --location --request GET 'http://localhost:3108/api/work-assignments/recipients?limit=1000' \
+  --cookie session.cookies.txt
+
+# [2.4 Bảo mật 401] Thiếu phiên hoặc thay cookie bằng cookie hết hạn.
+curl --location --request GET 'http://localhost:3108/api/work-assignments/recipients'
+
+# [2.5 Bảo mật 403] Không đủ quyền, ngoài phạm vi hoặc không phải người được thao tác.
+curl --location --request GET 'http://localhost:3108/api/work-assignments/recipients' \
+  --cookie no-permission.cookies.txt
+
+# [3.1 Thành công tối giản 200/201] Chi tiết nhánh được phép xem
+curl --location --request GET 'http://localhost:3108/api/work-assignments/<WORK_ID>' \
+  --cookie session.cookies.txt
+
+# [3.2 Thành công đầy đủ] Dùng dữ liệu mới/phiên bản mới nếu kịch bản trước đã thay đổi dữ liệu.
+curl --location --request GET 'http://localhost:3108/api/work-assignments/<WORK_ID>?page=1&limit=20&historyPage=1' \
+  --cookie session.cookies.txt
+
+# [3.3 Validation 422]
+curl --location --request GET 'http://localhost:3108/api/work-assignments/sai-id' \
+  --cookie session.cookies.txt
+
+# [3.4 Bảo mật 401] Thiếu phiên hoặc thay cookie bằng cookie hết hạn.
+curl --location --request GET 'http://localhost:3108/api/work-assignments/<WORK_ID>'
+
+# [3.5 Bảo mật 403] Không đủ quyền, ngoài phạm vi hoặc không phải người được thao tác.
+curl --location --request GET 'http://localhost:3108/api/work-assignments/<WORK_ID>' \
+  --cookie no-permission.cookies.txt
+
+# [4.1 Thành công tối giản 200/201] Tạo việc: work.assign hoặc work.self_create
+curl --location --request POST 'http://localhost:3108/api/work-assignments' \
+  --cookie session.cookies.txt \
+  --header 'Content-Type: application/json' \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --data-raw '{"title": "E2E Kiểm tra trong ngày", "source": "assigned", "segments": [{"content": "E2E Kiểm tra hồ sơ", "place": "Khu A", "startsAt": "2026-11-01T08:00:00+07:00", "endsAt": "2026-11-01T11:30:00+07:00", "assigneeIds": ["<STAFF_ID>"]}]}'
+
+# [4.2 Thành công đầy đủ] Dùng dữ liệu mới/phiên bản mới nếu kịch bản trước đã thay đổi dữ liệu.
+curl --location --request POST 'http://localhost:3108/api/work-assignments' \
+  --cookie session.cookies.txt \
+  --header 'Content-Type: application/json' \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --data-raw '{"title": "E2E Kiểm tra trong ngày", "source": "assigned", "segments": [{"content": "E2E Kiểm tra hồ sơ", "place": "Khu A", "startsAt": "2026-11-01T08:00:00+07:00", "endsAt": "2026-11-01T11:30:00+07:00", "assigneeIds": ["<STAFF_ID>"]}, {"content": "E2E Buổi chiều", "place": "Khu B", "startsAt": "2026-11-01T13:30:00+07:00", "endsAt": "2026-11-01T17:00:00+07:00", "assigneeIds": ["<OTHER_STAFF_ID>"]}], "description": "E2E Giao nhiều đoạn, khác nhóm"}'
+
+# [4.3 Validation 422]
+curl --location --request POST 'http://localhost:3108/api/work-assignments' \
+  --cookie session.cookies.txt \
+  --header 'Content-Type: application/json' \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --data-raw '{}'
+
+# [4.4 Bảo mật 401] Thiếu phiên hoặc thay cookie bằng cookie hết hạn.
+curl --location --request POST 'http://localhost:3108/api/work-assignments' \
+  --header 'Content-Type: application/json' \
+  --data-raw '{"title": "E2E Kiểm tra trong ngày", "source": "assigned", "segments": [{"content": "E2E Kiểm tra hồ sơ", "place": "Khu A", "startsAt": "2026-11-01T08:00:00+07:00", "endsAt": "2026-11-01T11:30:00+07:00", "assigneeIds": ["<STAFF_ID>"]}]}'
+
+# [4.5 Bảo mật 403] Không đủ quyền, ngoài phạm vi hoặc không phải người được thao tác.
+curl --location --request POST 'http://localhost:3108/api/work-assignments' \
+  --cookie no-permission.cookies.txt \
+  --header 'Content-Type: application/json' \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --data-raw '{"title": "E2E Kiểm tra trong ngày", "source": "assigned", "segments": [{"content": "E2E Kiểm tra hồ sơ", "place": "Khu A", "startsAt": "2026-11-01T08:00:00+07:00", "endsAt": "2026-11-01T11:30:00+07:00", "assigneeIds": ["<STAFF_ID>"]}]}'
+
+# [5.1 Thành công tối giản 200/201] Sửa thông tin chung: người tạo
+curl --location --request PATCH 'http://localhost:3108/api/work-assignments/<WORK_ID>' \
+  --cookie session.cookies.txt \
+  --header 'Content-Type: application/json' \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --data-raw '{"version": 1, "title": "E2E Đổi tên"}'
+
+# [5.2 Thành công đầy đủ] Dùng dữ liệu mới/phiên bản mới nếu kịch bản trước đã thay đổi dữ liệu.
+curl --location --request PATCH 'http://localhost:3108/api/work-assignments/<WORK_ID>' \
+  --cookie session.cookies.txt \
+  --header 'Content-Type: application/json' \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --data-raw '{"version": 1, "title": "E2E Đổi tên", "description": "E2E Mô tả mới"}'
+
+# [5.3 Validation 422]
+curl --location --request PATCH 'http://localhost:3108/api/work-assignments/<WORK_ID>' \
+  --cookie session.cookies.txt \
+  --header 'Content-Type: application/json' \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --data-raw '{"version": 1}'
+
+# [5.4 Bảo mật 401] Thiếu phiên hoặc thay cookie bằng cookie hết hạn.
+curl --location --request PATCH 'http://localhost:3108/api/work-assignments/<WORK_ID>' \
+  --header 'Content-Type: application/json' \
+  --data-raw '{"version": 1, "title": "E2E Đổi tên"}'
+
+# [5.5 Bảo mật 403] Không đủ quyền, ngoài phạm vi hoặc không phải người được thao tác.
+curl --location --request PATCH 'http://localhost:3108/api/work-assignments/<WORK_ID>' \
+  --cookie no-permission.cookies.txt \
+  --header 'Content-Type: application/json' \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --data-raw '{"version": 1, "title": "E2E Đổi tên"}'
+
+# [6.1 Thành công tối giản 200/201] Sửa lịch: người giao trực tiếp, chưa chuyển/xong
+curl --location --request PATCH 'http://localhost:3108/api/work-parts/<PART_ID>' \
+  --cookie session.cookies.txt \
+  --header 'Content-Type: application/json' \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --data-raw '{"version": 1, "segments": [{"content": "E2E Kiểm tra hồ sơ", "place": "Khu A", "startsAt": "2026-11-01T08:00:00+07:00", "endsAt": "2026-11-01T11:30:00+07:00", "assigneeIds": ["<STAFF_ID>"]}]}'
+
+# [6.2 Thành công đầy đủ] Dùng dữ liệu mới/phiên bản mới nếu kịch bản trước đã thay đổi dữ liệu.
+curl --location --request PATCH 'http://localhost:3108/api/work-parts/<PART_ID>' \
+  --cookie session.cookies.txt \
+  --header 'Content-Type: application/json' \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --data-raw '{"version": 1, "segments": [{"content": "E2E Kiểm tra hồ sơ", "place": "Khu C", "startsAt": "2026-11-01T08:00:00+07:00", "endsAt": "2026-11-01T11:30:00+07:00", "assigneeIds": ["<STAFF_ID>"]}]}'
+
+# [6.3 Validation 422]
+curl --location --request PATCH 'http://localhost:3108/api/work-parts/<PART_ID>' \
+  --cookie session.cookies.txt \
+  --header 'Content-Type: application/json' \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --data-raw '{"version": 1, "segments": []}'
+
+# [6.4 Bảo mật 401] Thiếu phiên hoặc thay cookie bằng cookie hết hạn.
+curl --location --request PATCH 'http://localhost:3108/api/work-parts/<PART_ID>' \
+  --header 'Content-Type: application/json' \
+  --data-raw '{"version": 1, "segments": [{"content": "E2E Kiểm tra hồ sơ", "place": "Khu A", "startsAt": "2026-11-01T08:00:00+07:00", "endsAt": "2026-11-01T11:30:00+07:00", "assigneeIds": ["<STAFF_ID>"]}]}'
+
+# [6.5 Bảo mật 403] Không đủ quyền, ngoài phạm vi hoặc không phải người được thao tác.
+curl --location --request PATCH 'http://localhost:3108/api/work-parts/<PART_ID>' \
+  --cookie no-permission.cookies.txt \
+  --header 'Content-Type: application/json' \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --data-raw '{"version": 1, "segments": [{"content": "E2E Kiểm tra hồ sơ", "place": "Khu A", "startsAt": "2026-11-01T08:00:00+07:00", "endsAt": "2026-11-01T11:30:00+07:00", "assigneeIds": ["<STAFF_ID>"]}]}'
+
+# [7.1 Thành công tối giản 200/201] Chuyển tiếp: người nhận có work.assign
+curl --location --request POST 'http://localhost:3108/api/work-parts/<PART_ID>/transfer' \
+  --cookie session.cookies.txt \
+  --header 'Content-Type: application/json' \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --data-raw '{"version": 1, "reason": "E2E Chia việc", "segments": [{"content": "E2E Kiểm tra hồ sơ", "place": "Khu A", "startsAt": "2026-11-01T08:00:00+07:00", "endsAt": "2026-11-01T11:30:00+07:00", "assigneeIds": ["<STAFF_ID>"]}]}'
+
+# [7.2 Thành công đầy đủ] Dùng dữ liệu mới/phiên bản mới nếu kịch bản trước đã thay đổi dữ liệu.
+curl --location --request POST 'http://localhost:3108/api/work-parts/<PART_ID>/transfer' \
+  --cookie session.cookies.txt \
+  --header 'Content-Type: application/json' \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --data-raw '{"version": 1, "reason": "E2E Điều chỉnh cả thời gian, giữ phần mình nếu cần", "segments": [{"content": "E2E Kiểm tra hồ sơ", "place": "Khu A", "startsAt": "2026-11-01T08:00:00+07:00", "endsAt": "2026-11-01T11:30:00+07:00", "assigneeIds": ["<STAFF_ID>"]}, {"content": "E2E Buổi chiều", "place": "Khu B", "startsAt": "2026-11-01T13:30:00+07:00", "endsAt": "2026-11-01T17:00:00+07:00", "assigneeIds": ["<OTHER_STAFF_ID>"]}]}'
+
+# [7.3 Validation 422]
+curl --location --request POST 'http://localhost:3108/api/work-parts/<PART_ID>/transfer' \
+  --cookie session.cookies.txt \
+  --header 'Content-Type: application/json' \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --data-raw '{"version": 1, "segments": [{"content": "E2E Kiểm tra hồ sơ", "place": "Khu A", "startsAt": "2026-11-01T08:00:00+07:00", "endsAt": "2026-11-01T11:30:00+07:00", "assigneeIds": ["<STAFF_ID>"]}]}'
+
+# [7.4 Bảo mật 401] Thiếu phiên hoặc thay cookie bằng cookie hết hạn.
+curl --location --request POST 'http://localhost:3108/api/work-parts/<PART_ID>/transfer' \
+  --header 'Content-Type: application/json' \
+  --data-raw '{"version": 1, "reason": "E2E Chia việc", "segments": [{"content": "E2E Kiểm tra hồ sơ", "place": "Khu A", "startsAt": "2026-11-01T08:00:00+07:00", "endsAt": "2026-11-01T11:30:00+07:00", "assigneeIds": ["<STAFF_ID>"]}]}'
+
+# [7.5 Bảo mật 403] Không đủ quyền, ngoài phạm vi hoặc không phải người được thao tác.
+curl --location --request POST 'http://localhost:3108/api/work-parts/<PART_ID>/transfer' \
+  --cookie no-permission.cookies.txt \
+  --header 'Content-Type: application/json' \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --data-raw '{"version": 1, "reason": "E2E Chia việc", "segments": [{"content": "E2E Kiểm tra hồ sơ", "place": "Khu A", "startsAt": "2026-11-01T08:00:00+07:00", "endsAt": "2026-11-01T11:30:00+07:00", "assigneeIds": ["<STAFF_ID>"]}]}'
+
+# [8.1 Thành công tối giản 200/201] Hoàn thành: người thực hiện hiện tại
+curl --location --request POST 'http://localhost:3108/api/work-parts/<PART_ID>/complete' \
+  --cookie session.cookies.txt \
+  --header 'Content-Type: application/json' \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --data-raw '{"version": 1}'
+
+# [8.2 Thành công đầy đủ] Dùng dữ liệu mới/phiên bản mới nếu kịch bản trước đã thay đổi dữ liệu.
+curl --location --request POST 'http://localhost:3108/api/work-parts/<PART_ID>/complete' \
+  --cookie session.cookies.txt \
+  --header 'Content-Type: application/json' \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --data-raw '{"version": 1, "note": "E2E Đã xử lý"}'
+
+# [8.3 Validation 422]
+curl --location --request POST 'http://localhost:3108/api/work-parts/<PART_ID>/complete' \
+  --cookie session.cookies.txt \
+  --header 'Content-Type: application/json' \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --data-raw '{"version": "sai"}'
+
+# [8.4 Bảo mật 401] Thiếu phiên hoặc thay cookie bằng cookie hết hạn.
+curl --location --request POST 'http://localhost:3108/api/work-parts/<PART_ID>/complete' \
+  --header 'Content-Type: application/json' \
+  --data-raw '{"version": 1}'
+
+# [8.5 Bảo mật 403] Không đủ quyền, ngoài phạm vi hoặc không phải người được thao tác.
+curl --location --request POST 'http://localhost:3108/api/work-parts/<PART_ID>/complete' \
+  --cookie no-permission.cookies.txt \
+  --header 'Content-Type: application/json' \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --data-raw '{"version": 1}'
+
+# [9.1 Thành công tối giản 200/201] Hủy nhánh: người giao trực tiếp
+curl --location --request POST 'http://localhost:3108/api/work-parts/<PART_ID>/cancel' \
+  --cookie session.cookies.txt \
+  --header 'Content-Type: application/json' \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --data-raw '{"version": 1, "reason": "E2E Dừng thực hiện"}'
+
+# [9.2 Thành công đầy đủ] Dùng dữ liệu mới/phiên bản mới nếu kịch bản trước đã thay đổi dữ liệu.
+curl --location --request POST 'http://localhost:3108/api/work-parts/<PART_ID>/cancel' \
+  --cookie session.cookies.txt \
+  --header 'Content-Type: application/json' \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --data-raw '{"version": 1, "reason": "E2E Hủy nhánh, giữ lịch sử phần hoàn thành"}'
+
+# [9.3 Validation 422]
+curl --location --request POST 'http://localhost:3108/api/work-parts/<PART_ID>/cancel' \
+  --cookie session.cookies.txt \
+  --header 'Content-Type: application/json' \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --data-raw '{"version": 1}'
+
+# [9.4 Bảo mật 401] Thiếu phiên hoặc thay cookie bằng cookie hết hạn.
+curl --location --request POST 'http://localhost:3108/api/work-parts/<PART_ID>/cancel' \
+  --header 'Content-Type: application/json' \
+  --data-raw '{"version": 1, "reason": "E2E Dừng thực hiện"}'
+
+# [9.5 Bảo mật 403] Không đủ quyền, ngoài phạm vi hoặc không phải người được thao tác.
+curl --location --request POST 'http://localhost:3108/api/work-parts/<PART_ID>/cancel' \
+  --cookie no-permission.cookies.txt \
+  --header 'Content-Type: application/json' \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --data-raw '{"version": 1, "reason": "E2E Dừng thực hiện"}'
+
+# [Tự tạo] <STAFF_ID> phải là chính tài khoản đang đăng nhập, có work.self_create.
+curl --location --request POST 'http://localhost:3108/api/work-assignments' \
+  --cookie session.cookies.txt \
+  --header 'Content-Type: application/json' \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --data-raw '{"title": "E2E Kiểm tra trong ngày", "source": "self", "segments": [{"content": "E2E Kiểm tra hồ sơ", "place": "Khu A", "startsAt": "2026-11-01T08:00:00+07:00", "endsAt": "2026-11-01T11:30:00+07:00", "assigneeIds": ["<STAFF_ID>"]}]}'
+
+# [409] Gửi lại lịch trùng người/giờ đã lưu, gửi version cũ (WORK_VERSION_CONFLICT), hoặc thao tác phần đã
+# hoàn thành/đã chuyển/đã hủy (WORK_STATE_CONFLICT). Cùng một người bị chọn ở hai khung giờ chồng nhau
+# trong CÙNG yêu cầu là dữ liệu sai -> 422.
+curl --request POST 'http://localhost:3108/api/work-assignments' --cookie session.cookies.txt --header 'X-CSRF-Token: <CSRF_TOKEN>' --header 'Content-Type: application/json' --data '{"title":"E2E Trùng trong yêu cầu","source":"assigned","segments":[{"content":"E2E Sáng","place":"Khu A","startsAt":"2026-11-01T08:00:00+07:00","endsAt":"2026-11-01T12:00:00+07:00","assigneeIds":["<STAFF_ID>"]},{"content":"E2E Trưa","place":"Khu A","startsAt":"2026-11-01T11:00:00+07:00","endsAt":"2026-11-01T13:00:00+07:00","assigneeIds":["<STAFF_ID>"]}]}'
+
+# [409 WORK_STATE_CONFLICT] Sửa phần đã chuyển tiếp (người giao trực tiếp, version mới nhất).
+curl --request PATCH 'http://localhost:3108/api/work-parts/<TRANSFERRED_PART_ID>' --cookie session.cookies.txt --header 'X-CSRF-Token: <CSRF_TOKEN>' --header 'Content-Type: application/json' --data '{"version":<VERSION>,"segments":[{"content":"E2E Sửa","place":"Khu A","startsAt":"2026-11-01T08:00:00+07:00","endsAt":"2026-11-01T09:00:00+07:00","assigneeIds":["<STAFF_ID>"]}]}'
+
+# [Phân trang] page sai về 1, limit kẹp trong 1..100; response có pagination.totalPages.
+# [Đồng thời] Chạy test database riêng: E2E_MYSQL_SOCKET=/tmp/mysql-e2e.sock pnpm test:database
+# Test bao gồm trùng cùng payload, liền giờ, qua ngày, 3 cấp chuyển, rollback, thu hồi quyền và hai yêu cầu đồng thời.
+
+# [Người thực hiện - thành công] Lọc nhánh đã giao; không mở rộng quyền xem.
+curl --location --request GET 'http://localhost:3108/api/work-assignments?mode=given&assigneeId=<STAFF_ID>' --cookie session.cookies.txt
+# [Người thực hiện - danh mục tối giản và đầy đủ] work.assign hoặc work.schedule_view.
+curl --location --request GET 'http://localhost:3108/api/work-assignments/recipients?mode=given' --cookie session.cookies.txt
+curl --location --request GET 'http://localhost:3108/api/work-assignments/recipients?mode=given&q=E2E&page=1&limit=20' --cookie session.cookies.txt
+# [Validation 422]
+curl --location --request GET 'http://localhost:3108/api/work-assignments?mode=given&assigneeId=sai' --cookie session.cookies.txt
+curl --location --request GET 'http://localhost:3108/api/work-assignments/recipients?mode=sai' --cookie session.cookies.txt
+# [Bảo mật 401/403] Không có phiên / không có quyền lọc người.
+curl --location --request GET 'http://localhost:3108/api/work-assignments/recipients?mode=given'
+curl --location --request GET 'http://localhost:3108/api/work-assignments/recipients?mode=given' --cookie no-permission.cookies.txt
+curl --location --request GET 'http://localhost:3108/api/work-assignments?mode=given&assigneeId=<STAFF_ID>' --cookie no-permission.cookies.txt
+
+# [Khoảng ngày thành công] Từ đầu năm, vẫn phân trang 20 phân công.
+curl --location --request GET 'http://localhost:3108/api/work-assignments?from=2026-01-01T00%3A00%3A00%2B07%3A00&to=2026-10-25T00%3A00%3A00%2B07%3A00&page=1&limit=20' --cookie session.cookies.txt
+# [Khoảng ngày validation 422] Vượt tối đa 366 ngày.
+curl --location --request GET 'http://localhost:3108/api/work-assignments?from=2026-01-01T00%3A00%3A00%2B07%3A00&to=2027-01-03T00%3A00%3A00%2B07%3A00' --cookie session.cookies.txt
+
+# [Tìm tên đã sửa - 200] Tìm theo cả tên phần việc và tên chung, vẫn giới hạn nhánh được xem.
+curl --location --request GET 'http://localhost:3108/api/work-assignments?mode=given&q=E2E' --cookie session.cookies.txt
+
+# [Kiểm tra lịch bận - thành công tối giản 200] Chỉ đọc; source=self chỉ cho bản thân.
+curl --location --request POST 'http://localhost:3108/api/work-assignments/availability' --cookie session.cookies.txt --header 'X-CSRF-Token: <CSRF_TOKEN>' --header 'Content-Type: application/json' --data '{"action":"create","source":"assigned","segments":[{"assigneeIds":["<STAFF_ID>"],"startsAt":"2026-11-01T08:00:00+07:00","endsAt":"2026-11-01T11:30:00+07:00"}]}'
+# [Kiểm tra lịch bận - đầy đủ 200] Sửa lịch do mình giao, bỏ qua chính phân công đang sửa.
+curl --location --request POST 'http://localhost:3108/api/work-assignments/availability' --cookie session.cookies.txt --header 'X-CSRF-Token: <CSRF_TOKEN>' --header 'Content-Type: application/json' --data '{"action":"edit","source":"assigned","excludeAssignmentId":"<PART_ID>","segments":[{"assigneeIds":["<STAFF_ID>"],"startsAt":"2026-11-01T13:30:00+07:00","endsAt":"2026-11-01T17:00:00+07:00"}]}'
+# [Validation 422] Thiếu người/giờ.
+curl --location --request POST 'http://localhost:3108/api/work-assignments/availability' --cookie session.cookies.txt --header 'X-CSRF-Token: <CSRF_TOKEN>' --header 'Content-Type: application/json' --data '{"action":"create","source":"assigned","segments":[]}'
+# [Bảo mật 401] Chưa đăng nhập.
+curl --location --request POST 'http://localhost:3108/api/work-assignments/availability' --header 'Content-Type: application/json' --data '{}'
+# [Bảo mật 403] Không đủ quyền giao cho người được chọn; dùng CSRF của đúng phiên.
+curl --location --request POST 'http://localhost:3108/api/work-assignments/availability' --cookie no-permission.cookies.txt --header 'X-CSRF-Token: <NO_PERMISSION_CSRF_TOKEN>' --header 'Content-Type: application/json' --data '{"action":"create","source":"assigned","segments":[{"assigneeIds":["<STAFF_ID>"],"startsAt":"2026-11-01T08:00:00+07:00","endsAt":"2026-11-01T11:30:00+07:00"}]}'
+# Nếu chỉ có quyền giao mà không có quyền xem lịch, response chỉ có người và giờ bận;
+# title/place/workId/id được lược bỏ. Kiểm tra này không thay thế kiểm tra trong transaction lưu.
+
+# [Khôi phục người được lọc - 200] Tra ID trong đúng danh sách được phép; ID ngoài nhánh trả items rỗng.
+curl --location --request GET 'http://localhost:3108/api/work-assignments/recipients?mode=given&id=<STAFF_ID>' --cookie session.cookies.txt
+# [Validation 422] ID không hợp lệ.
+curl --location --request GET 'http://localhost:3108/api/work-assignments/recipients?mode=given&id=sai' --cookie session.cookies.txt
+
+# [Phân quyền]: không có work.assign, kể cả có work.schedule_view -> 403 khi xem việc đã giao.
+curl 'http://localhost:3108/api/work-assignments?mode=given' \
+  --cookie '<MEMBER_COOKIE>'
+
+# [Phân quyền]: người ngoài phạm vi hoặc có system.manage/phạm vi giao rộng hơn không xuất hiện (200, items rỗng).
+curl 'http://localhost:3108/api/work-assignments/recipients?id=<HIGHER_OR_OUTSIDE_STAFF_ID>' \
+  --cookie '<MANAGER_COOKIE>'
+
+# [Phân quyền]: cố gửi ID người cao quyền trực tiếp -> 403 WORK_RECIPIENT_FORBIDDEN, không tạo việc.
+curl 'http://localhost:3108/api/work-assignments' \
+  --header 'Content-Type: application/json' --header 'X-CSRF-Token: <MANAGER_CSRF_TOKEN>' \
+  --cookie '<MANAGER_COOKIE>' \
+  --data '{"title":"E2E Kiểm tra quyền","source":"assigned","segments":[{"content":"E2E Kiểm tra quyền","place":"Văn phòng","startsAt":"2027-02-01T08:00:00+07:00","endsAt":"2027-02-01T09:00:00+07:00","assigneeIds":["<HIGHER_STAFF_ID>"]}]}'
+
+# Tạo việc bắt đầu trong quá khứ: chưa xác nhận -> 409 WORK_PAST_CONFIRMATION_REQUIRED, chưa ghi dữ liệu.
+curl --request POST 'http://localhost:3108/api/work-assignments' \
+  --cookie session.cookies.txt --header 'X-CSRF-Token: <CSRF_TOKEN>' --header 'Content-Type: application/json' \
+  --data '{"title":"E2E Nhập việc cũ","source":"assigned","segments":[{"content":"E2E Kiểm tra","place":"Khu A","startsAt":"2026-01-03T08:00:00+07:00","endsAt":"2026-01-03T11:30:00+07:00","assigneeIds":["<STAFF_ID>"]}]}'
+# Sau khi người dùng xác nhận: cùng dữ liệu + confirmPastStart=true -> 201 nếu đủ quyền và không trùng lịch.
+curl --request POST 'http://localhost:3108/api/work-assignments' \
+  --cookie session.cookies.txt --header 'X-CSRF-Token: <CSRF_TOKEN>' --header 'Content-Type: application/json' \
+  --data '{"title":"E2E Nhập việc cũ","source":"assigned","confirmPastStart":true,"segments":[{"content":"E2E Kiểm tra","place":"Khu A","startsAt":"2026-01-03T08:00:00+07:00","endsAt":"2026-01-03T11:30:00+07:00","assigneeIds":["<STAFF_ID>"]}]}'
+# Kiểm tra thêm: confirmPastStart="true" (chuỗi) -> 422; không cookie -> 401;
+# tài khoản không có quyền tạo/giao -> 403; xác nhận không bỏ qua kiểm tra trùng lịch (409).
+
+# Việc đã giao nhóm theo người: phân trang theo người, mỗi nhóm trả tối đa 5 việc đầu.
+curl --get 'http://localhost:3108/api/work-assignments' --cookie session.cookies.txt \
+  --data 'mode=given' --data 'groupBy=assignee' --data 'page=1' --data 'limit=25' \
+  --data-urlencode 'from=2026-11-01T00:00:00+07:00' --data-urlencode 'to=2026-11-08T00:00:00+07:00'
+# Đầy đủ: nhóm vẫn áp dụng đúng tìm kiếm/trạng thái/người nhận.
+curl --get 'http://localhost:3108/api/work-assignments' --cookie session.cookies.txt \
+  --data 'mode=given' --data 'groupBy=assignee' --data 'status=assigned' --data-urlencode 'q=Kiểm tra' \
+  --data-urlencode 'assigneeId=<STAFF_ID>' --data-urlencode 'from=2026-11-01T00:00:00+07:00' --data-urlencode 'to=2026-11-08T00:00:00+07:00'
+# Trang việc thứ 2 của một người: bỏ groupBy, giữ nguyên bộ lọc, limit=5.
+curl --get 'http://localhost:3108/api/work-assignments' --cookie session.cookies.txt \
+  --data 'mode=given' --data-urlencode 'assigneeId=<STAFF_ID>' --data 'page=2' --data 'limit=5' \
+  --data-urlencode 'from=2026-11-01T00:00:00+07:00' --data-urlencode 'to=2026-11-08T00:00:00+07:00'
+# Sai kiểu nhóm -> 422; không login -> 401; không có work.assign -> 403.
+curl --get 'http://localhost:3108/api/work-assignments' --cookie session.cookies.txt --data 'mode=given' --data 'groupBy=bad'
+curl --get 'http://localhost:3108/api/work-assignments' --data 'mode=given' --data 'groupBy=assignee'
+curl --get 'http://localhost:3108/api/work-assignments' --cookie member.cookies.txt --data 'mode=given' --data 'groupBy=assignee'

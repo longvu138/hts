@@ -1,0 +1,44 @@
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "pnpm@10.33.3",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test:e2e": "node e2e/run-playwright.cjs",
+    "test:e2e:quick": "node e2e/run-playwright.cjs --quick",
+    "test:e2e:auth": "node e2e/run-playwright.cjs e2e/auth.spec.js",
+    "test:e2e:permissions": "node e2e/run-playwright.cjs e2e/navigation-permissions.spec.js",
+    "test:e2e:notifications": "node e2e/run-playwright.cjs e2e/notifications.spec.js",
+    "test:e2e:report": "playwright show-report playwright-report",
+    "test:e2e:report:vi": "node e2e/reporters/open-vietnamese-report.cjs",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^6.2.3",
+    "@tailwindcss/vite": "^4.3.0",
+    "@tanstack/react-query": "^5.100.10",
+    "antd": "^6.4.2",
+    "axios": "^1.16.1",
+    "dayjs": "^1.11.20",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "react-router-dom": "^7.15.1",
+    "tailwindcss": "^4.3.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.61.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "eslint": "^10.3.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.6.0",
+    "vite": "^8.0.12"
+  }
+}

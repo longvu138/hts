@@ -1,0 +1,202 @@
+# Xác thực: chạy backend/curl/auth.curl để tạo cookie jar và lấy CSRF token.
+# Request POST/PATCH/DELETE đã đăng nhập phải gửi X-CSRF-Token.
+
+# ==============================================================================
+# PHÂN HỆ: QUẢN LÝ CÁN BỘ / USER (STAFF MEMBERS)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. API: LẤY DANH SÁCH CÁN BỘ (GET /api/staff-members)
+# ------------------------------------------------------------------------------
+
+# [Kịch bản 1.1 - Thành công]: Lấy danh sách cán bộ
+curl --location 'http://localhost:3108/api/staff-members?page=1&limit=25' \
+  --cookie session.cookies.txt
+
+# [Kịch bản 1.2 - Thành công]: Tìm kiếm cán bộ theo tên, mã hoặc email
+curl --location 'http://localhost:3108/api/staff-members?q=admin' \
+  --cookie session.cookies.txt
+
+# [Kịch bản 1.3 - Thành công]: Lọc cán bộ theo phòng ban
+curl --location 'http://localhost:3108/api/staff-members?departmentId=<DEPARTMENT_ID>' \
+  --cookie session.cookies.txt
+
+# [Kịch bản 1.3.1 - Validation an toàn]: limit lớn được giới hạn còn tối đa 100
+curl --location 'http://localhost:3108/api/staff-members?page=2&limit=999' \
+  --cookie session.cookies.txt
+
+# [Kịch bản 1.4 - Lỗi bảo mật]: Không truyền token đăng nhập
+curl --location 'http://localhost:3108/api/staff-members'
+
+# ------------------------------------------------------------------------------
+# 2. API: XEM CHI TIẾT CÁN BỘ (GET /api/staff-members/:id)
+# ------------------------------------------------------------------------------
+
+# [Kịch bản 2.1 - Thành công]: Xem chi tiết cán bộ
+curl --location 'http://localhost:3108/api/staff-members/1' \
+  --cookie session.cookies.txt
+
+# [Kịch bản 2.2 - Lỗi nghiệp vụ]: ID cán bộ không tồn tại
+curl --location 'http://localhost:3108/api/staff-members/999999' \
+  --cookie session.cookies.txt
+
+# [Kịch bản 2.3 - Lỗi bảo mật]: Token không hợp lệ hoặc hết hạn
+curl --location 'http://localhost:3108/api/staff-members/1' \
+  --header 'Cookie: hts_session=invalid_or_expired_token'
+
+# ------------------------------------------------------------------------------
+# 3. API: TẠO CÁN BỘ (POST /api/staff-members)
+# ------------------------------------------------------------------------------
+
+# [Kịch bản 3.1 - Thành công]: Admin tạo cán bộ với các trường bắt buộc
+curl --location 'http://localhost:3108/api/staff-members' \
+  --cookie admin.cookies.txt \
+  --header 'X-CSRF-Token: <ADMIN_CSRF_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "code": "CBTEST01",
+    "username": "cbtest01",
+    "fullName": "Cán bộ Kiểm thử 01"
+  }'
+
+# [Kịch bản 3.2 - Thành công]: Admin tạo cán bộ đầy đủ và có tài khoản đăng nhập
+curl --location 'http://localhost:3108/api/staff-members' \
+  --cookie admin.cookies.txt \
+  --header 'X-CSRF-Token: <ADMIN_CSRF_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "code": "CBTEST02",
+    "username": "cbtest02",
+    "fullName": "Cán bộ Kiểm thử 02",
+    "position": "Chuyên viên",
+    "departmentId": "<DEPARTMENT_ID>",
+    "email": "cbtest02@hts.local",
+    "phone": "0900000002",
+    "password": "StaffTest@123",
+    "isActive": true
+  }'
+
+# [Kịch bản 3.3 - Lỗi nghiệp vụ]: Thiếu mã cán bộ
+curl --location 'http://localhost:3108/api/staff-members' \
+  --cookie admin.cookies.txt \
+  --header 'X-CSRF-Token: <ADMIN_CSRF_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "fullName": "Cán bộ thiếu mã"
+  }'
+
+# [Kịch bản 3.4 - Lỗi nghiệp vụ]: Gán vai trò không tồn tại khi tạo cán bộ -> 422 "Vai trò không hợp lệ"
+curl --location 'http://localhost:3108/api/staff-members' \
+  --cookie admin.cookies.txt \
+  --header 'X-CSRF-Token: <ADMIN_CSRF_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "code": "CBROLEERR",
+    "username": "cbroleerr",
+    "fullName": "Cán bộ lỗi role",
+    "roleAssignments": [{ "roleId": "00000000-0000-0000-0000-000000000000", "scopeType": "department", "departmentId": "<DEPARTMENT_ID>" }]
+  }'
+
+# [Kịch bản 3.5 - Lỗi bảo mật]: Không truyền token đăng nhập
+curl --location 'http://localhost:3108/api/staff-members' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "code": "CBNOTOKEN",
+    "username": "cbnotoken",
+    "fullName": "Cán bộ không token"
+  }'
+
+# [Kịch bản 3.6 - Lỗi phân quyền]: Tài khoản không phải admin tạo cán bộ
+curl --location 'http://localhost:3108/api/staff-members' \
+  --cookie staff.cookies.txt \
+  --header 'X-CSRF-Token: <STAFF_CSRF_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "code": "CBFORBID",
+    "username": "cbforbid",
+    "fullName": "Cán bộ bị từ chối"
+  }'
+
+# ------------------------------------------------------------------------------
+# 4. API: CẬP NHẬT CÁN BỘ (PATCH /api/staff-members/:id)
+# ------------------------------------------------------------------------------
+
+# [Kịch bản 4.1 - Thành công]: Admin cập nhật thông tin cán bộ
+curl --location --request PATCH 'http://localhost:3108/api/staff-members/1' \
+  --cookie admin.cookies.txt \
+  --header 'X-CSRF-Token: <ADMIN_CSRF_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "position": "Quản trị viên hệ thống",
+    "phone": "0900000001",
+    "isActive": true
+  }'
+
+# [Kịch bản 4.2 - Thành công]: Admin đổi mật khẩu cán bộ
+curl --location --request PATCH 'http://localhost:3108/api/staff-members/1' \
+  --cookie admin.cookies.txt \
+  --header 'X-CSRF-Token: <ADMIN_CSRF_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "password": "NewPassword@123"
+  }'
+
+# [Kịch bản 4.3 - Lỗi nghiệp vụ]: Xóa trắng họ tên cán bộ
+curl --location --request PATCH 'http://localhost:3108/api/staff-members/1' \
+  --cookie admin.cookies.txt \
+  --header 'X-CSRF-Token: <ADMIN_CSRF_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "fullName": ""
+  }'
+
+# [Kịch bản 4.4 - Lỗi bảo mật]: Tài khoản không phải admin cập nhật cán bộ
+curl --location --request PATCH 'http://localhost:3108/api/staff-members/1' \
+  --cookie staff.cookies.txt \
+  --header 'X-CSRF-Token: <STAFF_CSRF_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "position": "Không được phép cập nhật"
+  }'
+
+# [Nghiệp vụ 409] Các kịch bản bảo vệ admin cuối cùng; chỉ chạy trên database E2E riêng.
+curl --request PATCH 'http://localhost:3108/api/staff-members/<LAST_ADMIN_ID>' --cookie admin.cookies.txt --header 'X-CSRF-Token: <CSRF_TOKEN>' --header 'Content-Type: application/json' --data '{"isActive":false}'
+
+curl --request DELETE 'http://localhost:3108/api/staff-members/<LAST_ADMIN_ID>/role-assignments/<ADMIN_ASSIGNMENT_ID>' --cookie admin.cookies.txt --header 'X-CSRF-Token: <CSRF_TOKEN>'
+
+curl --request PATCH 'http://localhost:3108/api/staff-members/<LAST_ADMIN_ID>/role-assignments/<ADMIN_ASSIGNMENT_ID>' --cookie admin.cookies.txt --header 'X-CSRF-Token: <CSRF_TOKEN>' --header 'Content-Type: application/json' --data '{"isActive":false}'
+
+# [Phân quyền 403] Quản lý nhân sự theo đơn vị không được đổi mật khẩu/username/trạng thái của tài khoản
+# có vai trò/phạm vi hệ thống hoặc phạm vi vượt ngoài đơn vị mình quản lý (chỉ system.manage được).
+curl --request PATCH 'http://localhost:3108/api/staff-members/<SYSTEM_ADMIN_ID>' --cookie staff.cookies.txt --header 'X-CSRF-Token: <STAFF_CSRF_TOKEN>' --header 'Content-Type: application/json' --data '{"isActive":false}'
+
+# [Phân quyền 403] Không tự gán vai trò cho chính mình (trừ system.manage).
+curl --request POST 'http://localhost:3108/api/staff-members/<MY_STAFF_ID>/role-assignments' --cookie staff.cookies.txt --header 'X-CSRF-Token: <STAFF_CSRF_TOKEN>' --header 'Content-Type: application/json' --data '{"roleId":"<ROLE_ID>","scopeType":"department","departmentId":"<DEPARTMENT_ID>"}'
+
+# [Phân quyền 403] Không gán vai trò có quyền mình chưa có, hoặc phạm vi department_tree khi mình chỉ có phạm vi đơn vị.
+curl --request POST 'http://localhost:3108/api/staff-members/<STAFF_ID>/role-assignments' --cookie staff.cookies.txt --header 'X-CSRF-Token: <STAFF_CSRF_TOKEN>' --header 'Content-Type: application/json' --data '{"roleId":"<ROLE_ID>","scopeType":"department_tree","departmentId":"<DEPARTMENT_ID>"}'
+
+# [Validation 422] Mật khẩu ngắn hơn 10 ký tự hoặc chứa tên tài khoản.
+curl --request PATCH 'http://localhost:3108/api/staff-members/<STAFF_ID>' --cookie admin.cookies.txt --header 'X-CSRF-Token: <ADMIN_CSRF_TOKEN>' --header 'Content-Type: application/json' --data '{"password":"short"}'
+
+# LỰA CHỌN GÁN QUYỀN: chỉ trả vai trò/phạm vi/đơn vị người dùng được phép gán.
+# [Thành công tối giản 200]
+curl --location 'http://localhost:3108/api/staff-members/assignment-options' --cookie session.cookies.txt
+# [Thành công đầy đủ 200] Tìm vai trò theo tên; backend vẫn giới hạn quyền.
+curl --location 'http://localhost:3108/api/staff-members/assignment-options?q=E2E' --cookie session.cookies.txt
+# [Validation 422] Tìm kiếm phải là chuỗi.
+curl --globoff --location 'http://localhost:3108/api/staff-members/assignment-options?q=sai&q=lap_lai' --cookie session.cookies.txt
+# [Bảo mật 401/403] Thiếu phiên / tài khoản không có staff.manage.
+curl --location 'http://localhost:3108/api/staff-members/assignment-options'
+curl --location 'http://localhost:3108/api/staff-members/assignment-options' --cookie no-permission.cookies.txt
+
+# Tạo tài khoản thiếu tên đăng nhập: 422, không tạo hồ sơ username=null.
+curl --request POST 'http://localhost:3108/api/staff-members' \
+  --cookie session.cookies.txt --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{"code":"E2E_USER_missing_username","fullName":"E2E Thiếu tên đăng nhập"}'
+
+# Không cho xóa tên đăng nhập khi sửa: 422.
+curl --request PATCH 'http://localhost:3108/api/staff-members/<E2E_STAFF_ID>' \
+  --cookie session.cookies.txt --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --header 'Content-Type: application/json' --data '{"username":null}'

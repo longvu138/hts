@@ -1,0 +1,11 @@
+const express = require('express');
+const router = express.Router();
+router.use('/auth', require('../modules/auth/auth.routes'));
+router.use('/departments', require('../modules/departments/departments.routes'));
+router.use('/health', require('./health.routes'));
+router.use('/notifications', require('../modules/notifications/notifications.routes'));
+router.use('/push', require('../modules/notifications/push.routes'));
+router.use('/roles', require('../modules/roles/roles.routes'));
+router.use('/staff-members', require('../modules/staff/staff-members.routes'));
+router.use('/', require('../modules/work/work.routes'));
+module.exports = router;

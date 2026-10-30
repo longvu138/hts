@@ -1,0 +1,824 @@
+:root {
+  --action-control-height: 36px;
+  --app-bg: #f4f6fa;
+  --panel-bg: #ffffff;
+  --panel-bg-rgb: 255, 255, 255;
+  --panel-muted-bg: #f8fafc;
+  --border: #e2e8f0;
+  --border-soft: #edf2f7;
+  --text: #1f2937;
+  --text-muted: #64748b;
+  --nav-text: #475569;
+  --active-bg: rgba(207, 0, 17, 0.08);
+  --active-text: #cf0011;
+  --table-title: #1f2937;
+  --table-title-hover: #cf0011;
+
+  /* Modern Red Gradient & Accent Colors */
+  --primary-red: #cf0011;
+  --primary-red-hover: #e52e3d;
+  --primary-red-gradient: linear-gradient(135deg, #cf0011 0%, #e52e3d 100%);
+  --primary-red-gradient-hover: linear-gradient(
+    135deg,
+    #b8000f 0%,
+    #cf263a 100%
+  );
+
+  /* Modern Premium Shadows */
+  --shadow-premium-sm:
+    0 1px 3px rgba(0, 0, 0, 0.02), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-premium:
+    0 4px 20px rgba(0, 0, 0, 0.02), 0 2px 8px rgba(0, 0, 0, 0.03);
+  --shadow-premium-lg:
+    0 10px 30px rgba(0, 0, 0, 0.03), 0 4px 12px rgba(0, 0, 0, 0.02);
+}
+
+:root[data-theme="dark"] {
+  --app-bg: #0b0d13;
+  --panel-bg: #121620;
+  --panel-bg-rgb: 18, 22, 32;
+  --panel-muted-bg: #191f2d;
+  --border: #1e2637;
+  --border-soft: #28334b;
+  --text: #e2e8f0;
+  --text-muted: #8892a4;
+  --nav-text: #cbd5e1;
+  --active-bg: rgba(229, 46, 61, 0.15);
+  --active-text: #ffb4ad;
+  --table-title: #e2e8f0;
+  --table-title-hover: #ffb4ad;
+
+  /* Modern Premium Shadows (Dark Mode) */
+  --shadow-premium-sm:
+    0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-premium:
+    0 4px 24px rgba(0, 0, 0, 0.15), 0 2px 12px rgba(0, 0, 0, 0.1);
+  --shadow-premium-lg:
+    0 12px 40px rgba(0, 0, 0, 0.25), 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.app-shell {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: var(--app-bg);
+  flex-direction: column;
+}
+
+.main-body-layout {
+  height: calc(100vh - 72px);
+  height: calc(100dvh - 72px);
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+@media (max-width: 767px) {
+  .main-body-layout {
+    height: calc(100dvh - 44px - env(safe-area-inset-top, 0px));
+  }
+}
+
+.sidebar {
+  height: calc(100vh - 72px);
+  height: calc(100dvh - 72px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--panel-bg) !important;
+  border-right: 1px solid var(--border);
+  padding: 16px 10px;
+}
+
+.sidebar-collapsed {
+  padding-inline: 8px;
+}
+
+.topbar-app-title {
+  border: 0;
+  background: transparent;
+  color: var(--active-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.2;
+  padding: 0;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.topbar-app-title:hover,
+.topbar-app-title:focus-visible {
+  color: #b91c1c;
+}
+
+.topbar-app-title-mobile {
+  color: #ffffff !important;
+  display: inline-block;
+  max-width: min(260px, calc(100vw - 252px));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+
+.nav-group {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.nav-group > .ant-typography {
+  padding: 0 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.nav-group .ant-btn {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 24px !important;
+  /* gap-6 in Tailwind CSS */
+  color: var(--nav-text);
+}
+
+.nav-group .ant-btn > span:last-child {
+  margin-left: 0 !important;
+}
+
+.sidebar-collapsed .nav-group .ant-btn {
+  justify-content: center !important;
+  padding-inline: 0 !important;
+  gap: 0 !important;
+}
+
+.sidebar-collapsed .nav-group .ant-btn .ant-btn-icon {
+  margin-inline-end: 0 !important;
+  margin: 0 !important;
+}
+
+.nav-active {
+  background: var(--active-bg) !important;
+  color: var(--active-text) !important;
+}
+
+.topbar {
+  min-height: 60px;
+  padding: 12px 20px;
+  background: var(--primary-red-gradient);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex: 0 0 72px;
+  line-height: normal;
+}
+
+.topbar:not(.topbar-mobile) .topbar-app-title,
+.topbar:not(.topbar-mobile) .ant-typography,
+.topbar:not(.topbar-mobile) .ant-btn,
+.topbar:not(.topbar-mobile) .anticon {
+  color: #ffffff !important;
+}
+
+.topbar:not(.topbar-mobile) .topbar-app-title:hover,
+.topbar:not(.topbar-mobile) .topbar-app-title:focus-visible,
+.topbar:not(.topbar-mobile) .ant-btn:hover,
+.topbar:not(.topbar-mobile) .ant-btn:focus-visible {
+  color: #fff7ed !important;
+}
+
+.topbar:not(.topbar-mobile) .sidebar-toggle,
+.topbar:not(.topbar-mobile) .topbar-action-button {
+  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.topbar:not(.topbar-mobile) .sidebar-toggle:hover,
+.topbar:not(.topbar-mobile) .topbar-action-button:hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+  border-color: rgba(255, 255, 255, 0.55) !important;
+}
+
+.topbar:not(.topbar-mobile) .ant-tag {
+  border-color: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.topbar-left {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.topbar-title-block {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar-toggle {
+  flex: 0 0 auto;
+}
+
+.topbar-title {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+
+.topbar-title h4 {
+  margin: 0;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.topbar-actions {
+  justify-content: flex-end;
+  gap: 16px;
+}
+
+.topbar-action-button {
+  flex: 0 0 auto;
+}
+
+.topbar-mobile {
+  display: flex !important;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center !important;
+  justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+  height: calc(44px + env(safe-area-inset-top, 0px)) !important;
+  min-height: calc(44px + env(safe-area-inset-top, 0px)) !important;
+  flex: 0 0 calc(44px + env(safe-area-inset-top, 0px)) !important;
+  line-height: normal !important;
+  padding-top: env(safe-area-inset-top, 0px) !important;
+  padding-left: 12px !important;
+  padding-right: 6px !important;
+  padding-bottom: 2px !important;
+  background: var(--primary-red-gradient);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.content {
+  height: 100%;
+  min-height: 0;
+  padding: 16px 20px 20px;
+  overflow: auto;
+  background: var(--app-bg);
+}
+
+/* Fix mobile background scroll when modal/drawer is open */
+body.ant-scrolling-effect {
+  overscroll-behavior: none;
+}
+
+body.ant-scrolling-effect .content {
+  overflow: hidden !important;
+}
+
+.auth-page {
+  height: 100dvh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--app-bg);
+}
+
+.auth-card {
+  width: min(420px, 100%);
+  border-radius: 8px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+/* Split-screen login layout */
+.login-container {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: var(--app-bg);
+}
+
+.login-visual-panel {
+  flex: 1;
+  position: relative;
+  background-image:
+    linear-gradient(rgba(10, 15, 30, 0.45), rgba(10, 15, 30, 0.85)),
+    url("/login_background.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  display: flex;
+  align-items: flex-end;
+  padding: 64px;
+  color: #fff;
+  border-right: 1px solid var(--border-soft);
+}
+
+.login-form-panel {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  overflow-y: auto;
+  background: var(--app-bg);
+}
+
+.login-form-card {
+  width: min(440px, 100%);
+  background: var(--panel-bg) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  border: 1px solid var(--border-soft) !important;
+}
+
+@media (max-width: 1024px) {
+  .login-visual-panel {
+    display: none;
+  }
+  .login-form-panel {
+    flex: 1;
+    padding: 24px;
+  }
+  .login-form-card {
+    background: var(--panel-bg) !important;
+    border: 1px solid var(--border-soft) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  }
+}
+
+.resource-page {
+  display: grid;
+  /* minmax(0, 1fr): bảng/nội dung rộng không kéo giãn cột lưới ra ngoài màn hình. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+.department-tree-card .ant-card-body {
+  padding: 12px;
+}
+
+.department-tree-card .ant-tree {
+  background: transparent;
+}
+
+.department-tree-card .ant-tree-treenode {
+  width: 100%;
+  padding-block: 4px;
+}
+
+.department-tree-card .ant-tree-node-content-wrapper {
+  min-width: 0;
+  flex: 1;
+  padding: 4px 8px;
+}
+
+.department-tree-node {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.department-tree-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.department-tree-main > .ant-typography:first-child {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 767px) {
+  .department-tree-node,
+  .department-tree-main {
+    align-items: flex-start;
+  }
+
+  .department-tree-node {
+    flex-direction: column;
+  }
+}
+
+.page-heading-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.page-heading-row .ant-space {
+  justify-content: flex-end;
+}
+
+@media (max-width: 767px) {
+  .page-heading-row {
+    display: grid;
+  }
+
+  .page-heading-row .ant-space,
+  .page-heading-row .ant-input-search {
+    width: 100%;
+  }
+
+  /* Ô tìm kiếm trong hàng tiêu đề chiếm trọn chiều ngang (Space bọc từng con trong .ant-space-item). */
+  .page-heading-row .ant-space-item:has(> .ant-input-search) {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+}
+
+.staff-card-title.mobile-card-title {
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.staff-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.app-shell:has(.topbar-mobile) {
+  height: 100dvh;
+  min-height: 100dvh;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.app-shell:has(.topbar-mobile) > .sidebar.ant-layout-sider {
+  display: none !important;
+}
+
+.ant-drawer-content .sidebar.ant-layout-sider {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  border-right: 0 !important;
+  padding: 16px 12px !important;
+}
+
+.app-shell:has(.topbar-mobile) .main-body-layout.ant-layout {
+  width: 100%;
+  height: calc(100dvh - 44px - env(safe-area-inset-top, 0px));
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.app-shell:has(.topbar-mobile) .content {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+
+
+.page-heading h4 {
+  margin: 0 0 4px;
+}
+
+/* Hover background styling */
+
+.mobile-card-list .ant-list-item {
+  padding-inline: 0;
+}
+
+.mobile-card-list .ant-list-pagination {
+  margin-block-start: 12px;
+  text-align: center;
+}
+
+@media (max-width: 1199px) {
+  .mobile-scrollbar-hidden,
+  .mobile-card-list,
+  .mobile-card-list .ant-list,
+  .mobile-card-list .ant-list-items,
+  .ant-drawer-body {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .mobile-scrollbar-hidden::-webkit-scrollbar,
+  .mobile-card-list::-webkit-scrollbar,
+  .mobile-card-list .ant-list::-webkit-scrollbar,
+  .mobile-card-list .ant-list-items::-webkit-scrollbar,
+  .ant-drawer-body::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+
+  .mobile-card-list,
+  .mobile-card-list .ant-list,
+  .mobile-card-list .ant-list-items {
+    overflow: visible;
+  }
+}
+
+.mobile-card {
+  width: 100%;
+  border-radius: 8px;
+  background: var(--panel-bg);
+}
+
+.mobile-card-list .ant-list-item:nth-child(even) .mobile-card {
+  background: color-mix(in srgb, var(--active-bg) 22%, var(--panel-bg));
+}
+
+.mobile-card.clickable {
+  cursor: pointer;
+}
+
+.mobile-card .ant-card-body {
+  padding: 12px 14px;
+}
+
+.mobile-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.mobile-card-title {
+  margin-bottom: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.mobile-card-meta {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+/* Keep the entire dialog in the viewport; only its body scrolls. Ant Design 6
+   uses .ant-modal-container; .ant-modal-content keeps the same rule for v5 panels. */
+.ant-modal-root .ant-modal-wrap {
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+.ant-modal-root .ant-modal {
+  --modal-viewport-gap: 16px;
+  top: calc(var(--modal-viewport-gap) + env(safe-area-inset-top, 0px));
+  margin: 0 auto;
+  padding-bottom: 0;
+  max-width: calc(100vw - 2 * var(--modal-viewport-gap));
+}
+
+.ant-modal-root .ant-modal-centered .ant-modal {
+  top: 0;
+}
+
+.ant-modal-root .ant-modal-container,
+.ant-modal-root .ant-modal-content {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 2 * var(--modal-viewport-gap) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  max-height: calc(100dvh - 2 * var(--modal-viewport-gap) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  overflow: hidden;
+}
+
+.ant-modal-root .ant-modal-header,
+.ant-modal-root .ant-modal-footer {
+  flex: 0 0 auto;
+}
+
+.ant-modal-root .ant-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+
+.full-width {
+  width: 100%;
+}
+
+@media (max-width: 980px) {
+  .topbar {
+    padding-inline: 14px;
+  }
+
+  .topbar-actions {
+    gap: 8px;
+  }
+
+  .content {
+    height: 100%;
+    padding: 12px;
+  }
+}
+
+@media (max-width: 640px) {
+  input,
+  textarea,
+  select,
+  .ant-input,
+  .ant-input-number-input,
+  .ant-select-selection-item,
+  .ant-select-selection-placeholder,
+  .ant-picker-input > input {
+    font-size: 16px !important;
+  }
+
+  .app-shell.ant-layout {
+    height: 100dvh;
+    min-height: 100dvh;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .app-shell.ant-layout > .sidebar.ant-layout-sider {
+    display: none !important;
+  }
+
+  .content {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mobile-card-list {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .mobile-card-head {
+    align-items: flex-start;
+  }
+
+  .mobile-card .ant-tag {
+    max-width: 100%;
+    white-space: normal;
+    line-height: 1.35;
+  }
+
+  .ant-drawer-content-wrapper {
+    width: 100vw !important;
+  }
+
+  .ant-drawer-body {
+    padding: 16px 12px calc(24px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .ant-drawer .ant-drawer-header {
+    padding-top: calc(14px + env(safe-area-inset-top, 0px));
+  }
+
+  .ant-drawer .ant-drawer-close {
+    margin-inline-end: 8px;
+  }
+
+  .ant-drawer .ant-drawer-content-wrapper .ant-drawer-footer {
+    padding: 10px 12px calc(14px + env(safe-area-inset-bottom, 0px)) !important;
+    background: var(--panel-bg);
+    border-top: 1px solid var(--border-soft);
+  }
+
+  .ant-drawer .ant-drawer-content-wrapper .ant-drawer-footer .ant-btn {
+    min-height: 40px;
+  }
+
+  .ant-modal-root .ant-modal {
+    --modal-viewport-gap: 12px;
+  }
+}
+
+@media (max-width: 420px) {
+  .topbar-action-button {
+    aspect-ratio: 1 / 1;
+    padding-inline: 0;
+  }
+
+  .topbar-action-button > span:not(.ant-btn-icon) {
+    display: none;
+  }
+
+  .mobile-card .ant-card-body {
+    padding: 12px;
+  }
+}
+
+.topbar-app-title-mobile {
+  min-height: 40px;
+}
+
+.auth-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.auth-back-button.ant-btn {
+  width: var(--action-control-height);
+  min-width: var(--action-control-height);
+  height: var(--action-control-height);
+}
+
+.password-rules {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.password-rules ul {
+  display: grid;
+  gap: 2px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.password-rules li {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.password-rules li .anticon {
+  margin-top: 3px;
+}
+
+.password-rules .password-rule-passed {
+  color: #237804;
+}
+
+:root[data-theme="dark"] .password-rules .password-rule-passed {
+  color: #95de64;
+}
+
+.password-rules .password-rule-failed {
+  color: #cf1322;
+}
+
+:root[data-theme="dark"] .password-rules .password-rule-failed {
+  color: #ff7875;
+}
+
+/* Danh sách card không dùng AntD List (đã deprecated ở v6). */
+.mobile-card-items {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mobile-card-items > .mobile-card-item:nth-child(even) .mobile-card {
+  background: color-mix(in srgb, var(--active-bg) 22%, var(--panel-bg));
+}
+
+.mobile-card-pagination.ant-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+@media (max-width: 1024px), (pointer: coarse) {
+  :root { --action-control-height: 44px; }
+}

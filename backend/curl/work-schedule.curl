@@ -1,0 +1,74 @@
+# GIAO VIỆC: chỉ dùng dữ liệu E2E, không sửa/xóa dữ liệu thật.
+# Đăng nhập theo auth.curl, tạo session.cookies.txt và lấy <CSRF_TOKEN>.
+# Thay <STAFF_ID>, <WORK_ID>, <PART_ID> bằng UUID trả về từ API.
+# Cập nhật version bằng phiên bản mới nhất mỗi lần thao tác; phiên bản cũ trả 409.
+# no-permission.cookies.txt là phiên của user ngoài phạm vi/không có quyền.
+# Thời gian ví dụ cần đổi sang ngày bạn muốn kiểm tra; +07:00 là giờ Việt Nam.
+# Xác thực bằng cookie phiên HttpOnly.
+
+# [Thành công 200 tối giản] Cần work.schedule_view theo phạm vi.
+curl --location --request GET 'http://localhost:3108/api/work-schedule' \
+  --cookie session.cookies.txt
+
+# [Thành công 200 đầy đủ]
+curl --location --request GET 'http://localhost:3108/api/work-schedule?at=2026-11-01T09%3A00%3A00%2B07%3A00&q=E2E&place=Khu&departmentId=<DEPARTMENT_ID>&page=1&limit=20' \
+  --cookie session.cookies.txt
+
+# [Validation 422] Thời điểm xem không phải ngày giờ có múi giờ. (limit quá lớn không lỗi, được giới hạn về 100.)
+curl --location --request GET 'http://localhost:3108/api/work-schedule?at=khong-phai-thoi-gian' \
+  --cookie session.cookies.txt
+
+# [Bảo mật 401] Không có phiên hoặc cookie hết hạn.
+curl --location --request GET 'http://localhost:3108/api/work-schedule'
+
+# [Bảo mật 403] Thiếu quyền xem tình hình.
+curl --location --request GET 'http://localhost:3108/api/work-schedule' \
+  --cookie no-permission.cookies.txt
+
+# [Thành công 200 tối giản] Cần work.schedule_view theo phạm vi.
+curl --location --request GET 'http://localhost:3108/api/work-schedule/departments' \
+  --cookie session.cookies.txt
+
+# [Thành công 200 đầy đủ]
+curl --location --request GET 'http://localhost:3108/api/work-schedule/departments?q=E2E&page=1&limit=100' \
+  --cookie session.cookies.txt
+
+# [Validation 422] Từ khóa tìm đơn vị quá 200 ký tự.
+curl --get 'http://localhost:3108/api/work-schedule/departments' --cookie session.cookies.txt \
+  --data-urlencode "q=$(printf 'A%.0s' $(seq 1 201))"
+
+# [Bảo mật 401] Không có phiên hoặc cookie hết hạn.
+curl --location --request GET 'http://localhost:3108/api/work-schedule/departments'
+
+# [Bảo mật 403] Thiếu quyền xem tình hình.
+curl --location --request GET 'http://localhost:3108/api/work-schedule/departments' \
+  --cookie no-permission.cookies.txt
+
+# Lịch theo người: ngày/tuần, khoảng [from,to), tối đa 7 ngày; bao gồm người chưa có việc.
+# Thành công tối giản, phân trang; dùng cookie người có work.schedule_view.
+curl --get 'http://localhost:3108/api/work-schedule' --cookie session.cookies.txt \
+  --data-urlencode 'from=2026-11-02T00:00:00+07:00' --data-urlencode 'to=2026-11-09T00:00:00+07:00'
+# Đầy đủ: lọc tên/đơn vị/nơi làm việc. canAssign từng người chỉ đúng khi được phép giao.
+curl --get 'http://localhost:3108/api/work-schedule' --cookie session.cookies.txt \
+  --data-urlencode 'from=2026-11-02T00:00:00+07:00' --data-urlencode 'to=2026-11-09T00:00:00+07:00' \
+  --data-urlencode 'q=Nguyễn' --data-urlencode 'departmentId=<DEPARTMENT_ID>' --data-urlencode 'place=Khu A' --data 'page=1' --data 'limit=20'
+# Validation: thiếu to -> 422; khoảng hơn 7 ngày hoặc ngược -> 422.
+curl --get 'http://localhost:3108/api/work-schedule' --cookie session.cookies.txt --data-urlencode 'from=2026-11-02T00:00:00+07:00'
+# Bảo mật: không có phiên -> 401; thay bằng cookie không có work.schedule_view -> 403.
+curl --get 'http://localhost:3108/api/work-schedule' --data-urlencode 'from=2026-11-02T00:00:00+07:00' --data-urlencode 'to=2026-11-03T00:00:00+07:00'
+curl --get 'http://localhost:3108/api/work-schedule' --cookie member.cookies.txt --data-urlencode 'from=2026-11-02T00:00:00+07:00' --data-urlencode 'to=2026-11-03T00:00:00+07:00'
+
+# Danh sách chọn người theo phạm vi xem lịch, không cần quyền giao việc (200).
+curl --get 'http://localhost:3108/api/work-schedule' --cookie session.cookies.txt \
+  --data 'peopleOnly=1' --data 'page=1' --data 'limit=50' --data-urlencode 'q=Nguyễn' \
+  --data-urlencode 'from=2026-11-02T00:00:00+07:00' --data-urlencode 'to=2026-11-09T00:00:00+07:00'
+# Lọc đúng một người theo UUID, bao gồm khi trùng họ tên (200).
+curl --get 'http://localhost:3108/api/work-schedule' --cookie session.cookies.txt \
+  --data-urlencode 'assigneeId=<STAFF_ID>' --data-urlencode 'from=2026-11-02T00:00:00+07:00' --data-urlencode 'to=2026-11-09T00:00:00+07:00'
+# Validation: mã người sai -> 422.
+curl --get 'http://localhost:3108/api/work-schedule' --cookie session.cookies.txt --data 'assigneeId=bad'
+# Người ngoài phạm vi: không có kết quả, không lộ thông tin.
+curl --get 'http://localhost:3108/api/work-schedule' --cookie session.cookies.txt --data 'peopleOnly=1' --data-urlencode 'assigneeId=<OUTSIDE_SCOPE_STAFF_ID>'
+# Không đăng nhập -> 401; cookie không có work.schedule_view -> 403.
+curl --get 'http://localhost:3108/api/work-schedule' --data 'peopleOnly=1'
+curl --get 'http://localhost:3108/api/work-schedule' --cookie member.cookies.txt --data 'peopleOnly=1'

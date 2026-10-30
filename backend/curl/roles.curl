@@ -1,0 +1,36 @@
+# Dùng tài khoản/quyền thử nghiệm; cookie lấy từ auth.curl. Thay <ROLE_ID> bằng vai trò E2E.
+# [Thành công] Danh mục và ma trận không chứa task.*, duty.*, professional_work.*
+curl --location 'http://localhost:3108/api/roles/actions' --cookie admin.cookies.txt
+
+curl --location 'http://localhost:3108/api/roles/permissions-matrix' --cookie admin.cookies.txt
+
+curl --location 'http://localhost:3108/api/roles/<ROLE_ID>/permissions' --cookie admin.cookies.txt
+
+# [Thành công] Gán tối thiểu và đầy đủ quyền còn hoạt động cho vai trò E2E
+curl --request PUT 'http://localhost:3108/api/roles/<ROLE_ID>/permissions' --cookie admin.cookies.txt --header 'X-CSRF-Token: <CSRF_TOKEN>' --header 'Content-Type: application/json' --data '{"actions":["staff.view"]}'
+
+curl --request PUT 'http://localhost:3108/api/roles/<ROLE_ID>/permissions' --cookie admin.cookies.txt --header 'X-CSRF-Token: <CSRF_TOKEN>' --header 'Content-Type: application/json' --data '{"actions":["staff.view","staff.manage","department.view","department.manage"]}'
+
+# [Validation] Quyền đã gỡ hoặc quyền sai trả 422
+curl --request PUT 'http://localhost:3108/api/roles/<ROLE_ID>/permissions' --cookie admin.cookies.txt --header 'X-CSRF-Token: <CSRF_TOKEN>' --header 'Content-Type: application/json' --data '{"actions":["task.view"]}'
+
+curl --request POST 'http://localhost:3108/api/roles/actions' --cookie admin.cookies.txt --header 'X-CSRF-Token: <CSRF_TOKEN>' --header 'Content-Type: application/json' --data '{"name":"duty.view","label":"E2E Quyền đã gỡ","groupName":"E2E"}'
+
+curl --request PATCH 'http://localhost:3108/api/roles/actions/task.view' --cookie admin.cookies.txt --header 'X-CSRF-Token: <CSRF_TOKEN>' --header 'Content-Type: application/json' --data '{"isActive":true}'
+
+# [Bảo mật] Chưa đăng nhập hoặc cookie hết hạn trả 401; user không có system.manage trả 403
+curl --location 'http://localhost:3108/api/roles/actions'
+
+curl --location 'http://localhost:3108/api/roles/actions' --cookie expired.cookies.txt
+
+curl --location 'http://localhost:3108/api/roles/actions' --cookie staff.cookies.txt
+
+# [Validation 422] Payload thiếu actions hoặc actions sai kiểu không được xóa quyền
+curl --request PUT 'http://localhost:3108/api/roles/<ROLE_ID>/permissions' --cookie admin.cookies.txt --header 'X-CSRF-Token: <CSRF_TOKEN>' --header 'Content-Type: application/json' --data '{}'
+
+curl --request PUT 'http://localhost:3108/api/roles/<ROLE_ID>/permissions' --cookie admin.cookies.txt --header 'X-CSRF-Token: <CSRF_TOKEN>' --header 'Content-Type: application/json' --data '{"actions":"staff.view"}'
+
+# [Nghiệp vụ 409] Không gỡ quyền cuối cùng hoặc tắt quyền system.manage khiến hệ thống mất admin
+curl --request PUT 'http://localhost:3108/api/roles/<LAST_ADMIN_ROLE_ID>/permissions' --cookie admin.cookies.txt --header 'X-CSRF-Token: <CSRF_TOKEN>' --header 'Content-Type: application/json' --data '{"actions":[]}'
+
+curl --request PATCH 'http://localhost:3108/api/roles/actions/system.manage' --cookie admin.cookies.txt --header 'X-CSRF-Token: <CSRF_TOKEN>' --header 'Content-Type: application/json' --data '{"isActive":false}'

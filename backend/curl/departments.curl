@@ -1,0 +1,153 @@
+# Xác thực: chạy backend/curl/auth.curl để tạo cookie jar và lấy CSRF token.
+# Request POST/PATCH/DELETE đã đăng nhập phải gửi X-CSRF-Token.
+
+# ==============================================================================
+# PHÂN HỆ: QUẢN LÝ PHÒNG BAN (DEPARTMENTS)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. API: LẤY DANH SÁCH PHÒNG BAN (GET /api/departments)
+# ------------------------------------------------------------------------------
+
+# [Kịch bản 1.1 - Thành công]: Lấy danh sách phòng ban
+# Lưu ý: dùng cookie jar được tạo từ backend/curl/auth.curl.
+curl --location 'http://localhost:3108/api/departments' \
+  --cookie session.cookies.txt
+
+# [Kịch bản 1.2 - Thành công]: Tìm kiếm phòng ban theo mã hoặc tên
+curl --location 'http://localhost:3108/api/departments?q=PHNTDS' \
+  --cookie session.cookies.txt
+
+# [Kịch bản 1.3 - Lỗi bảo mật]: Không truyền token đăng nhập
+curl --location 'http://localhost:3108/api/departments'
+
+# ------------------------------------------------------------------------------
+# 2. API: XEM CHI TIẾT PHÒNG BAN (GET /api/departments/:id)
+# ------------------------------------------------------------------------------
+
+# [Kịch bản 2.1 - Thành công]: Xem chi tiết phòng ban
+curl --location 'http://localhost:3108/api/departments/1' \
+  --cookie session.cookies.txt
+
+# [Kịch bản 2.2 - Lỗi nghiệp vụ]: ID phòng ban không tồn tại
+curl --location 'http://localhost:3108/api/departments/999999' \
+  --cookie session.cookies.txt
+
+# [Kịch bản 2.3 - Lỗi bảo mật]: Token không hợp lệ hoặc hết hạn
+curl --location 'http://localhost:3108/api/departments/1' \
+  --header 'Cookie: hts_session=invalid_or_expired_token'
+
+# ------------------------------------------------------------------------------
+# 3. API: TẠO PHÒNG BAN (POST /api/departments)
+# ------------------------------------------------------------------------------
+
+# [Kịch bản 3.1 - Thành công]: Admin tạo phòng ban với dữ liệu tối giản
+curl --location 'http://localhost:3108/api/departments' \
+  --cookie admin.cookies.txt \
+  --header 'X-CSRF-Token: <ADMIN_CSRF_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "code": "PTEST",
+    "name": "Phòng Kiểm thử"
+  }'
+
+# [Kịch bản 3.2 - Thành công]: Admin tạo phòng ban với đầy đủ trường tùy chọn
+curl --location 'http://localhost:3108/api/departments' \
+  --cookie admin.cookies.txt \
+  --header 'X-CSRF-Token: <ADMIN_CSRF_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "code": "PTEST2",
+    "name": "Phòng Kiểm thử 2",
+    "parentId": 1,
+    "description": "Phòng dùng để kiểm thử API",
+    "isActive": true
+  }'
+
+# [Kịch bản 3.3 - Lỗi nghiệp vụ]: Thiếu mã phòng ban
+curl --location 'http://localhost:3108/api/departments' \
+  --cookie admin.cookies.txt \
+  --header 'X-CSRF-Token: <ADMIN_CSRF_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "name": "Phòng thiếu mã"
+  }'
+
+# [Kịch bản 3.4 - Lỗi nghiệp vụ]: Trùng mã hoặc tên phòng ban
+curl --location 'http://localhost:3108/api/departments' \
+  --cookie admin.cookies.txt \
+  --header 'X-CSRF-Token: <ADMIN_CSRF_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "code": "PHNTDS",
+    "name": "Phòng Nền tảng và Dữ liệu số"
+  }'
+
+# [Kịch bản 3.5 - Lỗi bảo mật]: Không truyền token đăng nhập
+curl --location 'http://localhost:3108/api/departments' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "code": "PSEC",
+    "name": "Phòng không token"
+  }'
+
+# [Kịch bản 3.6 - Lỗi phân quyền]: Tài khoản không phải admin tạo phòng ban
+curl --location 'http://localhost:3108/api/departments' \
+  --cookie staff.cookies.txt \
+  --header 'X-CSRF-Token: <STAFF_CSRF_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "code": "PFORBID",
+    "name": "Phòng bị từ chối"
+  }'
+
+# ------------------------------------------------------------------------------
+# 4. API: CẬP NHẬT PHÒNG BAN (PATCH /api/departments/:id)
+# ------------------------------------------------------------------------------
+
+# [Kịch bản 4.1 - Thành công]: Admin cập nhật phòng ban
+curl --location --request PATCH 'http://localhost:3108/api/departments/1' \
+  --cookie admin.cookies.txt \
+  --header 'X-CSRF-Token: <ADMIN_CSRF_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "description": "Cập nhật mô tả phòng ban",
+    "isActive": true
+  }'
+
+# [Kịch bản 4.2 - Lỗi nghiệp vụ]: Xóa trắng tên phòng ban
+curl --location --request PATCH 'http://localhost:3108/api/departments/1' \
+  --cookie admin.cookies.txt \
+  --header 'X-CSRF-Token: <ADMIN_CSRF_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "name": ""
+  }'
+
+# [Kịch bản 4.3 - Lỗi bảo mật]: Tài khoản không phải admin cập nhật phòng ban
+curl --location --request PATCH 'http://localhost:3108/api/departments/1' \
+  --cookie staff.cookies.txt \
+  --header 'X-CSRF-Token: <STAFF_CSRF_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "description": "Không được phép cập nhật"
+  }'
+
+# [Kịch bản 4.4 - Lỗi phân quyền 403]: Chuyển đơn vị sang đơn vị cha mà bạn không có department.manage,
+# hoặc đưa lên gốc (parentId null) khi không có phạm vi hệ thống
+curl --location --request PATCH 'http://localhost:3108/api/departments/<DEPARTMENT_ID>' \
+  --cookie staff.cookies.txt \
+  --header 'X-CSRF-Token: <STAFF_CSRF_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{"parentId": null}'
+
+# [Kịch bản 4.5 - Lỗi nghiệp vụ 422]: Chọn đơn vị con làm đơn vị cha (tạo vòng)
+curl --location --request PATCH 'http://localhost:3108/api/departments/<PARENT_DEPARTMENT_ID>' \
+  --cookie admin.cookies.txt \
+  --header 'X-CSRF-Token: <ADMIN_CSRF_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{"parentId": "<CHILD_DEPARTMENT_ID>"}'
+
+# [Kịch bản 1.4 - Thành công]: Tìm kiếm ký tự %/_ được hiểu theo nghĩa đen; danh sách tối đa 500 đơn vị
+curl --location 'http://localhost:3108/api/departments?q=50%25' \
+  --cookie admin.cookies.txt

@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+@variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root {
+  font-family:
+    "Time new roman",
+    "Be Vietnam Pro",
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  color: var(--text, #1f2937);
+  background: var(--app-bg, #f3f6fb);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  /* 100vh dùng chiều cao viewport lớn nhất có thể (khi thanh địa chỉ ẩn), luôn >= chiều cao
+     thực đang hiển thị trên trình duyệt di động (khác PWA cài đặt, vốn không có thanh này) —
+     100dvh theo đúng phần nhìn thấy để nội dung/nút cuối màn hình không bị che khuất. */
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--app-bg, #f3f6fb);
+  overflow: hidden;
+}
+
+#root {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: hidden;
+}

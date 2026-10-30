@@ -1,0 +1,16 @@
+{
+  "name": "hts",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Chạy song song backend và frontend khi phát triển local (không phải workspace, backend/frontend vẫn là 2 dự án pnpm độc lập).",
+  "scripts": {
+    "dev": "concurrently -n BE,FE -c blue,green \"cd backend && pnpm dev\" \"cd frontend && pnpm dev\"",
+    "dev:be": "cd backend && pnpm dev",
+    "dev:fe": "cd frontend && pnpm dev",
+    "test:deploy": "node --test tests/deploy.test.cjs"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  },
+  "packageManager": "pnpm@10.33.3"
+}

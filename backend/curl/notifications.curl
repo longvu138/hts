@@ -1,0 +1,79 @@
+# ==============================================================================
+# PHÂN HỆ: THÔNG BÁO VÀ WEB PUSH
+# ==============================================================================
+# Đăng nhập theo auth.curl để có session.cookies.txt và <CSRF_TOKEN>. Thông báo chỉ dành cho người nhận.
+
+# [Kịch bản 1.1 - Thành công tối giản]: Danh sách thông báo của tôi
+curl --location 'http://localhost:3108/api/notifications' \
+  --cookie session.cookies.txt
+
+# [Kịch bản 1.2 - Thành công đầy đủ]: Chỉ chưa đọc, phân trang (page sai về 1, limit tối đa 100)
+curl --location 'http://localhost:3108/api/notifications?unread=true&page=1&limit=100' \
+  --cookie session.cookies.txt
+
+# [Kịch bản 1.3 - Bảo mật 401]: Không gửi cookie
+curl --location 'http://localhost:3108/api/notifications'
+
+# [Kịch bản 2.1 - Thành công]: Số thông báo chưa đọc
+curl --location 'http://localhost:3108/api/notifications/unread-count' \
+  --cookie session.cookies.txt
+
+# [Kịch bản 2.2 - Thành công]: Đánh dấu đã đọc một thông báo
+curl --location --request PATCH 'http://localhost:3108/api/notifications/<NOTIFICATION_ID>/read' \
+  --cookie session.cookies.txt \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>'
+
+# [Kịch bản 2.3 - Lỗi 404]: Thông báo của người khác hoặc không tồn tại
+curl --location --request PATCH 'http://localhost:3108/api/notifications/<OTHER_USER_NOTIFICATION_ID>/read' \
+  --cookie session.cookies.txt \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>'
+
+# [Kịch bản 2.4 - Bảo mật 403]: Có cookie nhưng thiếu X-CSRF-Token
+curl --location --request PATCH 'http://localhost:3108/api/notifications/read-all' \
+  --cookie session.cookies.txt
+
+# [Kịch bản 2.5 - Thành công]: Đánh dấu tất cả đã đọc
+curl --location --request PATCH 'http://localhost:3108/api/notifications/read-all' \
+  --cookie session.cookies.txt \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>'
+
+# Web Push: endpoint phải là HTTPS của fcm.googleapis.com, *.push.services.mozilla.com,
+# *.notify.windows.com hoặc web.push.apple.com; tối đa 2048 ký tự; mỗi tài khoản tối đa 10 thiết bị.
+# Endpoint đang thuộc tài khoản khác bị từ chối 409, không tự chuyển sang tài khoản hiện tại.
+
+# [Kịch bản 3.1 - Thành công]: Lấy VAPID public key
+curl --location 'http://localhost:3108/api/push/vapid-public-key' \
+  --cookie session.cookies.txt
+
+# [Kịch bản 3.2 - Thành công]: Lưu đăng ký Web Push của trình duyệt
+curl --location 'http://localhost:3108/api/push/subscriptions' \
+  --cookie session.cookies.txt \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{"endpoint":"https://fcm.googleapis.com/fcm/send/<BROWSER_TOKEN>","keys":{"p256dh":"<P256DH_KEY>","auth":"<AUTH_KEY>"}}'
+
+# [Kịch bản 3.3 - Validation 422]: Endpoint không thuộc dịch vụ Web Push được hỗ trợ
+curl --location 'http://localhost:3108/api/push/subscriptions' \
+  --cookie session.cookies.txt \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{"endpoint":"http://127.0.0.1:8080/hook","keys":{"p256dh":"abc","auth":"def"}}'
+
+# [Kịch bản 3.4 - Validation 422]: Thiếu khóa đăng ký
+curl --location 'http://localhost:3108/api/push/subscriptions' \
+  --cookie session.cookies.txt \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{"endpoint":"https://fcm.googleapis.com/fcm/send/<BROWSER_TOKEN>"}'
+
+# [Kịch bản 3.5 - Bảo mật 401]: Không gửi cookie
+curl --location 'http://localhost:3108/api/push/subscriptions' \
+  --header 'Content-Type: application/json' \
+  --data '{"endpoint":"https://fcm.googleapis.com/fcm/send/<BROWSER_TOKEN>","keys":{"p256dh":"abc","auth":"def"}}'
+
+# [Kịch bản 3.6 - Thành công]: Hủy đăng ký Web Push
+curl --location --request DELETE 'http://localhost:3108/api/push/subscriptions' \
+  --cookie session.cookies.txt \
+  --header 'X-CSRF-Token: <CSRF_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{"endpoint":"https://fcm.googleapis.com/fcm/send/<BROWSER_TOKEN>"}'

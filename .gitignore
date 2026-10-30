@@ -1,0 +1,42 @@
+# Runtime output
+logs/
+*.log
+
+# Dependencies
+node_modules/
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.local
+*.cookies.txt
+*.pem
+*.key
+
+# Build output
+dist/
+build/
+coverage/
+
+# Playwright output
+frontend/test-results/
+frontend/playwright-report/
+
+# Local contest deliverables (not part of application source)
+contest-evidence/
+
+# OS/editor files
+.DS_Store
+.vscode/
+.idea/
+.pnpm-store/
+.agents/
+.codex/
+# VPS private config and exported database backups
+*.sql
+*.sql.gz
+*.sql.gz.sha256
+deploy/.env
+__pycache__/

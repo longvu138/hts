@@ -1,0 +1,31 @@
+{
+  "name": "Quản trị hệ thống",
+  "short_name": "Quản trị hệ thống",
+  "description": "Quản lý đơn vị, cán bộ, phân quyền và thông báo",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#cf0011",
+  "icons": [
+    {
+      "src": "/pwa-icon.svg?v=20260613",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/pwa-192x192.png?v=20260613",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png?v=20260613",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

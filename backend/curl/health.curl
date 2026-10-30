@@ -1,0 +1,3 @@
+# Health check
+curl --location 'http://localhost:3108/api/health'
+

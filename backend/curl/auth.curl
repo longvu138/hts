@@ -1,0 +1,167 @@
+# ==============================================================================
+# PHÂN HỆ: XÁC THỰC VÀ QUẢN LÝ PHIÊN
+# ==============================================================================
+# Backend dùng JWT trong cookie HttpOnly, không nhận Authorization Bearer.
+# Đăng nhập bằng --cookie-jar để lưu cookie. Sao chép csrfToken trong JSON response
+# vào <ADMIN_CSRF_TOKEN>/<STAFF_CSRF_TOKEN> cho POST/PATCH/DELETE đã đăng nhập.
+
+# Bootstrap qua API cần BOOTSTRAP_TOKEN (tối thiểu 32 ký tự) trong .env của backend và header
+# X-Bootstrap-Token trùng giá trị đó. Không cấu hình biến này thì API trả 403 BOOTSTRAP_DISABLED;
+# khi đó dùng: echo '{"username":"...","password":"..."}' | node scripts/bootstrap-admin.js
+# Mật khẩu tối thiểu 10 ký tự, tối đa 72 byte và không chứa tên tài khoản.
+
+# [Kịch bản 0.1 - Thành công tối giản]: Khởi tạo admin đầu tiên khi hệ thống chưa có admin
+curl --location 'http://localhost:3108/api/auth/bootstrap-admin' \
+  --header 'Content-Type: application/json' \
+  --header 'X-Bootstrap-Token: <BOOTSTRAP_TOKEN>' \
+  --data '{
+    "username": "<ADMIN_USERNAME>",
+    "password": "<STRONG_ADMIN_PASSWORD>"
+  }'
+
+# [Kịch bản 0.2 - Thành công đầy đủ]: Khởi tạo admin kèm thông tin tùy chọn
+curl --location 'http://localhost:3108/api/auth/bootstrap-admin' \
+  --header 'Content-Type: application/json' \
+  --header 'X-Bootstrap-Token: <BOOTSTRAP_TOKEN>' \
+  --data '{
+    "username": "<ADMIN_USERNAME>",
+    "password": "<STRONG_ADMIN_PASSWORD>",
+    "fullName": "Quản trị hệ thống",
+    "position": "Quản trị viên",
+    "email": "admin@example.com",
+    "phone": "0900000000"
+  }'
+
+# [Kịch bản 0.3 - Bảo mật 403]: Thiếu hoặc sai X-Bootstrap-Token -> 403 BOOTSTRAP_TOKEN_INVALID
+curl --location 'http://localhost:3108/api/auth/bootstrap-admin' \
+  --header 'Content-Type: application/json' \
+  --header 'X-Bootstrap-Token: sai-ma-khoi-tao' \
+  --data '{"username":"E2E_USER_bootstrap","password":"E2E_Password2026"}'
+
+# [Kịch bản 0.4 - Validation 422]: Mật khẩu ngắn hơn 10 ký tự hoặc chứa tên tài khoản
+curl --location 'http://localhost:3108/api/auth/bootstrap-admin' \
+  --header 'Content-Type: application/json' \
+  --header 'X-Bootstrap-Token: <BOOTSTRAP_TOKEN>' \
+  --data '{"username":"E2E_USER_bootstrap","password":"E2E_USER_bootstrap_2026"}'
+
+# [Kịch bản 1.1 - Thành công]: Đăng nhập admin và lưu JWT HttpOnly vào cookie jar
+curl --location 'http://localhost:3108/api/auth/login' \
+  --cookie-jar admin.cookies.txt \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "username": "<ADMIN_USERNAME>",
+    "password": "<ADMIN_PASSWORD>"
+  }'
+
+# [Kịch bản 1.2 - Thành công]: Đăng nhập user thường bằng cookie jar riêng
+curl --location 'http://localhost:3108/api/auth/login' \
+  --cookie-jar staff.cookies.txt \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "username": "<STAFF_USERNAME>",
+    "password": "<STAFF_PASSWORD>"
+  }'
+
+# [Kịch bản 1.3 - Validation 422]: Thiếu mật khẩu
+curl --location 'http://localhost:3108/api/auth/login' \
+  --header 'Content-Type: application/json' \
+  --data '{"username":"<ADMIN_USERNAME>"}'
+
+# [Kịch bản 1.4 - Bảo mật 401]: Sai thông tin đăng nhập
+curl --location 'http://localhost:3108/api/auth/login' \
+  --header 'Content-Type: application/json' \
+  --data '{"username":"invalid-user","password":"InvalidPassword@123"}'
+
+# [Kịch bản 2.1 - Thành công]: Lấy user hiện tại và nhận CSRF token mới
+curl --location 'http://localhost:3108/api/auth/me' \
+  --cookie admin.cookies.txt
+
+# [Kịch bản 2.2 - Bảo mật 401]: Không gửi cookie
+curl --location 'http://localhost:3108/api/auth/me'
+
+# [Kịch bản 2.3 - Bảo mật 401]: Cookie JWT không hợp lệ hoặc hết hạn
+curl --location 'http://localhost:3108/api/auth/me' \
+  --header 'Cookie: hts_session=invalid_or_expired_token'
+
+# Tạo tài khoản cho cán bộ: dùng POST /api/staff-members (xem staff-members.curl).
+
+# [Kịch bản 4.1 - Thành công]: Đổi mật khẩu và nhận cookie + CSRF token mới
+curl --location 'http://localhost:3108/api/auth/change-password' \
+  --cookie staff.cookies.txt \
+  --cookie-jar staff.cookies.txt \
+  --header 'X-CSRF-Token: <STAFF_CSRF_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "currentPassword": "<CURRENT_PASSWORD>",
+    "newPassword": "<NEW_STRONG_PASSWORD>",
+    "confirmPassword": "<NEW_STRONG_PASSWORD>"
+  }'
+
+# [Kịch bản 4.2 - CSRF 403]: Có cookie nhưng thiếu X-CSRF-Token
+curl --location 'http://localhost:3108/api/auth/change-password' \
+  --cookie staff.cookies.txt \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "currentPassword": "<CURRENT_PASSWORD>",
+    "newPassword": "<NEW_STRONG_PASSWORD>",
+    "confirmPassword": "<NEW_STRONG_PASSWORD>"
+  }'
+
+# Trường id của mỗi phiên là mã công khai (không phải JWT jti); dùng đúng id này để thu hồi.
+# Tài khoản có vai trò/phạm vi hệ thống hoặc phạm vi vượt ngoài đơn vị bạn quản lý chỉ quản trị
+# hệ thống (system.manage) được xem/thu hồi phiên và reset mật khẩu.
+
+# [Kịch bản 5.1 - Thành công]: Liệt kê phiên của một user (page/limit tùy chọn, tối đa 100)
+curl --location 'http://localhost:3108/api/auth/admin/users/<USER_UUID>/sessions' \
+  --cookie admin.cookies.txt
+
+# [Kịch bản 5.2 - Thành công]: Thu hồi một phiên bằng id lấy từ kịch bản 5.1
+curl --location --request DELETE 'http://localhost:3108/api/auth/admin/users/<USER_UUID>/sessions/<SESSION_PUBLIC_ID>' \
+  --cookie admin.cookies.txt \
+  --header 'X-CSRF-Token: <ADMIN_CSRF_TOKEN>'
+
+# [Kịch bản 5.2.1 - Bảo mật 403]: Quản lý nhân sự theo đơn vị xem phiên của tài khoản quản trị hệ thống
+curl --location 'http://localhost:3108/api/auth/admin/users/<SYSTEM_ADMIN_UUID>/sessions' \
+  --cookie staff.cookies.txt
+
+# [Kịch bản 5.2.2 - Bảo mật 403]: Quản lý nhân sự theo đơn vị reset mật khẩu tài khoản quản trị hệ thống
+curl --location 'http://localhost:3108/api/auth/admin/reset-password/<SYSTEM_ADMIN_UUID>' \
+  --cookie staff.cookies.txt \
+  --header 'X-CSRF-Token: <STAFF_CSRF_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{"password":"<TEMP_PASSWORD_10_CHARS>","confirmPassword":"<TEMP_PASSWORD_10_CHARS>"}'
+
+# [Kịch bản 5.3 - Thành công]: Thu hồi tất cả phiên của user
+curl --location 'http://localhost:3108/api/auth/admin/users/<USER_UUID>/sessions/revoke-all' \
+  --cookie admin.cookies.txt \
+  --header 'X-CSRF-Token: <ADMIN_CSRF_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{"exceptCurrent":false}'
+
+# [Kịch bản 6.1 - Thành công]: Logout và xóa cookie hiện tại
+curl --location 'http://localhost:3108/api/auth/logout' \
+  --cookie admin.cookies.txt \
+  --cookie-jar admin.cookies.txt \
+  --header 'X-CSRF-Token: <ADMIN_CSRF_TOKEN>' \
+  --data ''
+
+# [Bootstrap 409] Sau lần khởi tạo đầu, endpoint vẫn đóng kể cả admin bị vô hiệu.
+# Kiểm tra bootstrap đồng thời và rollback bằng pnpm test:database trên MySQL E2E riêng.
+curl --request POST 'http://localhost:3108/api/auth/bootstrap-admin' --header 'Content-Type: application/json' --header 'X-Bootstrap-Token: <BOOTSTRAP_TOKEN>' --data '{"username":"E2E_USER_second_bootstrap","password":"E2E_Password2026","fullName":"E2E Quản trị thứ hai"}'
+
+# [Bootstrap 422] Sai kiểu thông tin bắt buộc
+curl --request POST 'http://localhost:3108/api/auth/bootstrap-admin' --header 'Content-Type: application/json' --header 'X-Bootstrap-Token: <BOOTSTRAP_TOKEN>' --data '{"username":123,"password":"E2E_Password2026"}'
+
+# [Validation]: Mật khẩu quá dài trả 422, nhắc nhập ngắn hơn, không hiển thị đơn vị byte.
+curl --location 'http://localhost:3108/api/auth/change-password' \
+  --header 'Content-Type: application/json' \
+  --header 'X-CSRF-Token: <STAFF_CSRF_TOKEN>' \
+  --cookie '<STAFF_COOKIE>' \
+  --data '{"currentPassword":"<CURRENT_PASSWORD>","newPassword":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","confirmPassword":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}'
+
+# Deploy HTTP không cần biết trước IP: cùng website vẫn nhận 401 khi chưa đăng nhập,
+# CORS cho phép origin trùng địa chỉ website; thay IP/cổng theo nơi đang chạy.
+curl -i 'http://<IP_VPS>/api/auth/me' -H 'Origin: http://<IP_VPS>'
+# Website khác bị chặn 403, kể cả khi không cấu hình PUBLIC_ORIGIN.
+curl -i 'http://<IP_VPS>/api/auth/me' -H 'Origin: https://evil.example'
+# Request ghi vẫn phải có cookie đăng nhập + X-CSRF-Token; xem các ca đăng nhập ở trên.
