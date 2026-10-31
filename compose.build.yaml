@@ -1,0 +1,21 @@
+# Chạy tại source. Sửa trực tiếp 2 dòng image bên dưới trước khi build/push.
+# yourname = tài khoản Docker Hub; 1.0.2 = phiên bản (đổi cả hai image cùng tag).
+# Build và push cả AMD64 + ARM64; máy chạy tự pull đúng kiến trúc.
+# Lệnh: docker compose -f compose.build.yaml build --builder hts-multi --push
+services:
+  backend:
+    image: 130820/hts-backend:1.0.2
+    build:
+      context: .
+      platforms:
+        - linux/amd64
+        - linux/arm64
+      dockerfile: backend/Dockerfile
+  web:
+    image: 130820/hts-web:1.0.2
+    build:
+      context: .
+      platforms:
+        - linux/amd64
+        - linux/arm64
+      dockerfile: frontend/Dockerfile

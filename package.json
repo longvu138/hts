@@ -7,7 +7,7 @@
     "dev": "concurrently -n BE,FE -c blue,green \"cd backend && pnpm dev\" \"cd frontend && pnpm dev\"",
     "dev:be": "cd backend && pnpm dev",
     "dev:fe": "cd frontend && pnpm dev",
-    "test:deploy": "node --test tests/deploy.test.cjs"
+    "test:deploy": "node --test tests/compose-deploy.test.cjs"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

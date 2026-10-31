@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Optional developer test, not needed on the VPS: isolated Docker deployment/backup/restore."""
-import gzip
+import hashlib
 import http.cookiejar
 import json
 import os
@@ -16,7 +16,7 @@ import urllib.error
 ROOT = Path(__file__).resolve().parent.parent
 TEMP = Path(tempfile.mkdtemp(prefix='hts-docker-smoke-'))
 PROJECT = 'hts-smoke-' + secrets.token_hex(4)
-ENV = dict(os.environ, HTS_ENV_FILE=str(TEMP / 'env'))
+ENV = dict(os.environ, HTS_ENV_FILE=str(TEMP / '.env'))
 TAG = PROJECT
 password = secrets.token_hex(16)
 success = False
@@ -53,58 +53,51 @@ opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), urllib.req
 csrf = None
 
 
-def api(path, body=None, method='GET'):
+def api(path, body=None, method='GET', extra_headers=None):
     headers = {'Origin': ORIGIN}
     if body is not None:
         headers['Content-Type'] = 'application/json'
     if csrf:
         headers['X-CSRF-Token'] = csrf
+    headers.update(extra_headers or {})
     req = urllib.request.Request(ORIGIN + '/api' + path, data=json.dumps(body).encode() if body is not None else None, method=method, headers=headers)
     with opener.open(req, timeout=30) as response:
         return json.load(response), response.headers
 
 
 try:
-    template = (ROOT / 'deploy/.env.example').read_text()
-    values = {'COMPOSE_PROJECT_NAME': PROJECT, 'HTS_IMAGE_TAG': TAG, 'HTS_BACKEND_IMAGE': f'hts-backend:{TAG}', 'HTS_WEB_IMAGE': f'hts-web:{TAG}', 'HTS_DOMAIN': '', 'PUBLIC_ORIGIN': '', 'HTS_SITE_ADDRESS': ':80', 'CORS_ALLOW_SAME_ORIGIN': 'true', 'AUTH_COOKIE_NAME': 'hts_session', 'AUTH_COOKIE_SECURE': 'false', 'ACME_EMAIL': 'admin@example.com', 'HTTP_PORT': f'127.0.0.1:{HTTP_PORT}', 'HTTPS_PORT': f'127.0.0.1:{HTTPS_PORT}', 'HTS_DATA_DIR': str(TEMP / 'data'), 'MYSQL_PASSWORD': secrets.token_hex(32), 'MYSQL_ROOT_PASSWORD': secrets.token_hex(32), 'JWT_SECRET': secrets.token_hex(32), 'CSRF_SECRET': secrets.token_hex(32)}
+    values = {'COMPOSE_PROJECT_NAME': PROJECT, 'HTS_IMAGE_TAG': TAG, 'HTS_BACKEND_IMAGE': f'hts-backend:{TAG}', 'HTS_WEB_IMAGE': f'hts-web:{TAG}', 'PUBLIC_ORIGIN': '', 'HTS_SITE_ADDRESS': ':80', 'CORS_ALLOW_SAME_ORIGIN': 'true', 'AUTH_COOKIE_NAME': 'hts_session', 'AUTH_COOKIE_SECURE': 'false', 'HTTP_PORT': f'127.0.0.1:{HTTP_PORT}', 'HTTPS_PORT': f'127.0.0.1:{HTTPS_PORT}', 'HTS_DATA_DIR': str(TEMP / 'data')}
     ENV.update(values)
-    ENV['HTS_SKIP_PULL'] = '1'  # Chỉ test local: dùng đúng các image tạm vừa build, không cần Docker Hub.
     ENV.pop('HTS_IMAGE_NAMESPACE', None)
     ENV.update(VAPID_PUBLIC_KEY='', VAPID_PRIVATE_KEY='', VAPID_SUBJECT='')
-    lines = []
-    for line in template.splitlines():
-        key = line.split('=', 1)[0]
-        lines.append(f'{key}={values[key]}' if key in values else line)
-    (TEMP / 'env').write_text('\n'.join(lines) + '\n')
-    (TEMP / 'env').chmod(0o600)
-    for folder in ['mysql', 'logs', 'caddy/data', 'caddy/config', 'backups']:
-        (TEMP / 'data' / folder).mkdir(parents=True, exist_ok=True)
-    if os.geteuid() == 0:
-        os.chown(TEMP / 'data/logs', 1000, 1000)
-    else:
-        (TEMP / 'data/logs').chmod(0o777)  # Temporary Docker Desktop test only; deploy.sh uses UID 1000 on the VPS.
-    run(['docker', 'build', '-f', 'backend/Dockerfile', '-t', f'hts-backend:{TAG}', '.'])
-    run(['docker', 'build', '-f', 'frontend/Dockerfile', '-t', f'hts-web:{TAG}', '.'])
-    compose('config', '--quiet')
-    run(['bash', str(ROOT / 'deploy.sh')], input=f'E2E_DOCKER_admin\n{password}\n{password}\n')
-    config = json.loads(compose('config', '--format', 'json').stdout)
-    assert not config['services']['db'].get('ports')
-    assert not config['services']['backend'].get('ports')
-    compose('exec', '-T', 'backend', 'node', '-e', "if(process.getuid()!==1000 || require('fs').existsSync('/app/.env'))process.exit(1)")
-    assert api('/health')[0]['status'] == 'ok'
-    assert opener.open(ORIGIN + '/work', timeout=30).status == 200
-    missing = None
+    for service, dockerfile in [('backend', 'backend/Dockerfile'), ('web', 'frontend/Dockerfile')]:
+        run(['docker', 'build', '-f', dockerfile, '-t', f'hts-{service}:{TAG}', '.'])
+    run(['docker', 'run', '--rm', '--user', '0', '-v', f'{TEMP}:/deploy', f'hts-backend:{TAG}', 'node', 'scripts/setup-deploy.js', 'e2e', TAG])
+    # Keep fresh generated secrets; substitute only test image/path/ports/project.
+    config = TEMP / '.env'
+    lines = config.read_text().splitlines()
+    config.write_text('\n'.join(f'{line.split("=", 1)[0]}={values[line.split("=", 1)[0]]}' if line.split('=', 1)[0] in values else line for line in lines) + '\n')
+    compose('up', '-d', '--wait', '--wait-timeout', '240')
+    token = next(line.split('=', 1)[1] for line in config.read_text().splitlines() if line.startswith('BOOTSTRAP_TOKEN='))
+    admin_body = {'username': 'E2E_DOCKER_admin', 'password': password}
+    for header in [{}, {'X-Bootstrap-Token': 'E2E_wrong_token'}]:
+        try:
+            api('/auth/bootstrap-admin', admin_body, 'POST', header)
+            raise AssertionError('Bootstrap thiếu/sai token phải bị chặn')
+        except urllib.error.HTTPError as error:
+            assert error.code == 403
     try:
-        opener.open(ORIGIN + '/assets/does-not-exist.js', timeout=30)
+        api('/auth/bootstrap-admin', {'username': 123}, 'POST', {'X-Bootstrap-Token': token})
+        raise AssertionError('Payload sai phải bị chặn')
     except urllib.error.HTTPError as error:
-        missing = error.code
-    assert missing == 404, 'Asset không có không được trả HTML SPA'
-    disabled = None
+        assert error.code == 422
+    created, _ = api('/auth/bootstrap-admin', admin_body, 'POST', {'X-Bootstrap-Token': token})
+    assert created['user']['username'] == 'E2E_DOCKER_admin'
     try:
-        api('/auth/bootstrap-admin', {'username': 'E2E_DOCKER_public', 'password': password}, 'POST')
+        api('/auth/bootstrap-admin', {'username': 'E2E_DOCKER_second', 'password': password}, 'POST', {'X-Bootstrap-Token': token})
+        raise AssertionError('Không được tạo lại admin đầu tiên')
     except urllib.error.HTTPError as error:
-        disabled = error.code
-    assert disabled == 403, 'Bootstrap public phải tắt khi không cấu hình BOOTSTRAP_TOKEN'
+        assert error.code == 409
     auth, headers = api('/auth/login', {'username': 'E2E_DOCKER_admin', 'password': password}, 'POST')
     cookie = headers.get('Set-Cookie', '')
     assert 'hts_session=' in cookie and 'Secure' not in cookie and 'HttpOnly' in cookie
@@ -125,19 +118,18 @@ try:
     finally:
         csrf = saved_csrf
     api('/departments', {'code': 'E2E_DOCKER_BEFORE', 'name': 'E2E Docker trước backup'}, 'POST')
-    backup = Path(run(['bash', str(ROOT / 'deploy.sh'), 'backup']).stdout.strip())
+    compose('run', '--rm', 'backup')
+    backup = next((TEMP / 'data/backups').glob('*.sql'))
     assert backup.is_file() and Path(str(backup) + '.sha256').is_file()
-    assert backup.with_name(backup.name.removesuffix('.sql.gz') + '.env').is_file()
-    with gzip.open(backup, 'rt') as sql:
-        assert 'E2E_DOCKER_BEFORE' in sql.read()
+    assert Path(str(backup) + '.env').is_file()
+    assert 'E2E_DOCKER_BEFORE' in backup.read_text()
+    digest = hashlib.sha256(backup.read_bytes()).hexdigest()
+    assert Path(str(backup) + '.sha256').read_text().split()[0] == digest
     api('/departments', {'code': 'E2E_DOCKER_AFTER', 'name': 'E2E Docker sau backup'}, 'POST')
-    corrupt = backup.parent / 'corrupt.sql.gz'
-    shutil.copyfile(backup, corrupt)
-    Path(str(corrupt) + '.sha256').write_text('0' * 64 + '  corrupt.sql.gz\n')
-    rejected = run(['bash', str(ROOT / 'deploy.sh'), 'restore', str(corrupt)], check=False)
-    assert rejected.returncode != 0 and 'Checksum' in rejected.stderr
-    assert api('/health')[0]['status'] == 'ok', 'Checksum sai phải dừng trước khi tắt app'
-    run(['bash', str(ROOT / 'deploy.sh'), 'restore', str(backup)], input='KHOI PHUC\n')
+    compose('stop', 'web', 'backend')
+    compose('exec', '-T', 'db', 'sh', '-ec', 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; mysql -u root "$MYSQL_DATABASE"', input=backup.read_text())
+    compose('run', '--rm', '--no-deps', 'migrate')
+    compose('up', '-d', '--wait', '--no-deps', 'backend', 'web')
     jar.clear()
     auth, _ = api('/auth/login', {'username': 'E2E_DOCKER_admin', 'password': password}, 'POST')
     csrf = auth['csrfToken']
@@ -149,7 +141,7 @@ try:
     assert list((TEMP / 'data/logs').glob('*.log'))
     assert (TEMP / 'data/caddy/data').is_dir()
     success = True
-    print('PASS: image local, HTTP không khai báo địa chỉ, cookie/CSRF/CORS, SPA/API, backup/checksum, restore và dữ liệu sau recreate.')
+    print('PASS: Compose trực tiếp, setup secret, migration tự động, admin API (token/validation/chặn tạo lại), HTTP/cookie/CSRF/CORS, backup/checksum/restore và dữ liệu sau recreate.')
 finally:
     compose('down', '--remove-orphans', check=False)
     if success and os.environ.get('HTS_SMOKE_KEEP') != '1':

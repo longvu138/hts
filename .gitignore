@@ -35,6 +35,7 @@ contest-evidence/
 .agents/
 .codex/
 # VPS private config and exported database backups
+data/
 *.sql
 *.sql.gz
 *.sql.gz.sha256

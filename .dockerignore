@@ -1,6 +1,7 @@
 .git
 .agents
 .codex
+data
 **/node_modules
 **/.pnpm-store
 **/.env

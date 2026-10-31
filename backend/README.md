@@ -18,8 +18,7 @@ cp .env.example .env
 2. Cấu hình `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME=hts` trong `.env`. Tài khoản database cần quyền tạo bảng/index/foreign key và đọc/ghi dữ liệu trong database này.
 3. Đổi `JWT_SECRET` và `CSRF_SECRET` thành hai chuỗi bí mật ngẫu nhiên, tối thiểu 32 ký tự và khác nhau (`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`). Với `NODE_ENV=production`, backend **từ chối khởi động** nếu một trong hai khóa thiếu, ngắn hơn 32 ký tự, là giá trị mẫu hoặc trùng nhau. Ở môi trường phát triển chỉ ghi cảnh báo; nếu thiếu `CSRF_SECRET`, backend dẫn xuất một khóa CSRF riêng từ `JWT_SECRET` (không dùng trực tiếp `JWT_SECRET`) để `.env` local vẫn chạy.
 4. Chạy `pnpm migrate`. Không import SQL trước hoặc sau bước này.
-5. Khởi động backend (`pnpm dev`, mặc định tại http://localhost:3108) rồi tạo tài khoản quản trị đầu tiên bằng một trong hai cách (mật khẩu tối thiểu 10 ký tự, tối đa 72 byte, không chứa tên tài khoản; không có mật khẩu mặc định):
-   - Dòng lệnh (khuyến nghị): `echo '{"username":"admin","password":"<MAT_KHAU_MANH>"}' | node scripts/bootstrap-admin.js`.
+5. Khởi động backend (`pnpm dev`, mặc định tại http://localhost:3108) rồi tạo tài khoản quản trị đầu tiên qua API (mật khẩu tối thiểu 10 ký tự, tối đa 72 byte, không chứa tên tài khoản; không có mật khẩu mặc định):
    - API: đặt `BOOTSTRAP_TOKEN` (tối thiểu 32 ký tự ngẫu nhiên) trong `.env`, gọi `POST /api/auth/bootstrap-admin` kèm header `X-Bootstrap-Token` (ví dụ ở `curl/auth.curl`), rồi xóa biến này. Thiếu `BOOTSTRAP_TOKEN` thì API trả 403 `BOOTSTRAP_DISABLED`; sai token trả 403 `BOOTSTRAP_TOKEN_INVALID`.
 
 ## Migration
@@ -194,3 +193,9 @@ Deploy image mặc định bật `CORS_ALLOW_SAME_ORIGIN=true`: API cho phép Or
 `POST /api/work-assignments`: sau kiểm tra quyền, nếu bất kỳ startsAt đã qua theo đồng hồ server mà chưa có `confirmPastStart: true`, trả 409 `WORK_PAST_CONFIRMATION_REQUIRED` và không ghi công việc. Giá trị xác nhận phải là boolean, sai kiểu trả 422. Xác nhận cho phép nhập việc quá khứ với quyền tạo/giao hiện có, vẫn kiểm tra trùng lịch; lưu cờ trong audit log và snapshot lịch sử tạo. Không cần migration mới. Sửa/chuyển/hoàn thành không bị chặn chỉ vì ngày cũ.
 
 `GET /api/work-assignments?mode=given&groupBy=assignee` phân trang theo người trong đúng nhánh đã giao, vẫn áp dụng q/status/from/to/assigneeId. Mỗi người trả số việc, assigned/completed và tối đa 5 assignments đầu; pagination.total là số người, pagination.workTotal là tổng việc. Dùng truy vấn window ROW_NUMBER trên MySQL 8+ thay vì tải toàn bộ hoặc N+1. Trang tiếp của một người dùng API given thường với assigneeId, page, limit=5. Không mở rộng quyền sang các việc do người khác giao ngoài nhánh của người đang xem; không cần migration mới.
+
+## Docker Compose
+
+Máy phát triển sửa trực tiếp hai dòng `image` trong `compose.build.yaml` rồi build/push cả AMD64/ARM64 bằng `docker compose -f compose.build.yaml build --builder hts-multi --push` (không cần export biến); server dùng `compose.yaml` ở root. Khởi tạo cấu hình một lần bằng `scripts/setup-deploy.js` trong image (bind thư mục triển khai vào `/deploy`, chạy user 0 để đặt quyền log uid 1000). Script không đụng database, không ghi đè `.env`. Migration là service riêng, phải hoàn tất trước backend. Backup SQL bằng `docker compose run --rm backup`. Xem [hướng dẫn triển khai](../docs/DEPLOY_VPS_DOCKER.md).
+
+Compose truyền `BOOTSTRAP_TOKEN` (setup tự sinh trong `.env`) cho API `POST /api/auth/bootstrap-admin`. Gọi API với `X-Bootstrap-Token` để tạo admin lần đầu; có thể xóa token và recreate backend sau khởi tạo.

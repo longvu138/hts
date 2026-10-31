@@ -42,12 +42,12 @@ const bootstrapAdmin = async (input) => {
   return user;
 };
 // Public bootstrap needs the one-time BOOTSTRAP_TOKEN from the server environment.
-// Without it the endpoint stays closed; operators can use scripts/bootstrap-admin.js instead.
+// Without it the endpoint stays closed; configure the token and restart before initialization.
 const BOOTSTRAP_TOKEN_HEADER = "x-bootstrap-token";
 const sha256 = (value) => crypto.createHash("sha256").update(String(value)).digest();
 const assertBootstrapToken = (provided, expected = process.env.BOOTSTRAP_TOKEN) => {
   if (!expected) {
-    throw httpError(403, "Khởi tạo quản trị qua API đang tắt. Cấu hình BOOTSTRAP_TOKEN trên máy chủ hoặc dùng script bootstrap-admin", "BOOTSTRAP_DISABLED");
+    throw httpError(403, "Khởi tạo quản trị qua API đang tắt. Cấu hình BOOTSTRAP_TOKEN trên máy chủ rồi khởi động lại backend", "BOOTSTRAP_DISABLED");
   }
   // Hash both sides so timingSafeEqual compares equal-length buffers.
   if (typeof provided !== "string" || !provided || !crypto.timingSafeEqual(sha256(provided), sha256(expected))) {

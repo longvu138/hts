@@ -7,7 +7,7 @@
 
 # Bootstrap qua API cần BOOTSTRAP_TOKEN (tối thiểu 32 ký tự) trong .env của backend và header
 # X-Bootstrap-Token trùng giá trị đó. Không cấu hình biến này thì API trả 403 BOOTSTRAP_DISABLED;
-# khi đó dùng: echo '{"username":"...","password":"..."}' | node scripts/bootstrap-admin.js
+# Khi đó thêm BOOTSTRAP_TOKEN vào cấu hình máy chủ và khởi động lại backend trước khi gọi API.
 # Mật khẩu tối thiểu 10 ký tự, tối đa 72 byte và không chứa tên tài khoản.
 
 # [Kịch bản 0.1 - Thành công tối giản]: Khởi tạo admin đầu tiên khi hệ thống chưa có admin
@@ -165,3 +165,10 @@ curl -i 'http://<IP_VPS>/api/auth/me' -H 'Origin: http://<IP_VPS>'
 # Website khác bị chặn 403, kể cả khi không cấu hình PUBLIC_ORIGIN.
 curl -i 'http://<IP_VPS>/api/auth/me' -H 'Origin: https://evil.example'
 # Request ghi vẫn phải có cookie đăng nhập + X-CSRF-Token; xem các ca đăng nhập ở trên.
+
+# [Docker Compose - Tạo admin lần đầu]: lấy BOOTSTRAP_TOKEN từ .env cạnh compose.yaml.
+# Thành công 201; thiếu/sai token 403; payload sai 422; đã khởi tạo 409.
+curl --request POST 'http://localhost:3180/api/auth/bootstrap-admin' \
+  --header 'Content-Type: application/json' \
+  --header 'X-Bootstrap-Token: <BOOTSTRAP_TOKEN_TRONG_ENV>' \
+  --data '{"username":"admin","password":"<MAT_KHAU_MANH>","fullName":"Quản trị hệ thống"}'

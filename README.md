@@ -36,7 +36,7 @@ cd backend
 pnpm migrate
 ```
 
-Migration nền `202610240001_initial_schema.js` tạo 11 bảng (10 bảng nghiệp vụ và `administration_state`), seed vai trò superadmin cùng năm quyền cơ bản; `202610240002_work_assignments.js` tạo phân hệ giao việc. Không có SQL dump, tài khoản hay mật khẩu mẫu. Tạo tài khoản quản trị đầu tiên bằng `node scripts/bootstrap-admin.js` trong `backend` (đọc JSON từ stdin) hoặc `POST /api/auth/bootstrap-admin` kèm header `X-Bootstrap-Token` khớp `BOOTSTRAP_TOKEN` trong `.env` (xem `backend/README.md`, `backend/curl/auth.curl`).
+Migration nền `202610240001_initial_schema.js` tạo 11 bảng (10 bảng nghiệp vụ và `administration_state`), seed vai trò superadmin cùng năm quyền cơ bản; `202610240002_work_assignments.js` tạo phân hệ giao việc. Không có SQL dump, tài khoản hay mật khẩu mẫu. Tạo tài khoản quản trị đầu tiên bằng `POST /api/auth/bootstrap-admin` kèm header `X-Bootstrap-Token` khớp `BOOTSTRAP_TOKEN` trong `.env` (xem `backend/README.md`, `backend/curl/auth.curl`).
 
 ## Kiểm tra
 
@@ -86,6 +86,8 @@ Không có dữ liệu hay tài khoản mẫu. Sau khi tạo admin, bạn tự t
 
 ## Triển khai VPS
 
-- Dockerfile, Compose, thư mục dữ liệu ngoài source, HTTPS, backup/restore và cập nhật VPS: [docs/DEPLOY_VPS_DOCKER.md](docs/DEPLOY_VPS_DOCKER.md).
-- Máy phát triển: `docker login`, rồi `bash deploy.sh publish <dockerhub> <phiên-bản>`. VPS chỉ cần `deploy.sh`, `compose.yaml`, `deploy/.env.example`, chạy `sudo bash deploy.sh deploy <dockerhub> <phiên-bản>` để pull/run; không build source trên VPS. Mặc định HTTP không hỏi IP/tên miền; HTTPS cấu hình sau. Dữ liệu ở `/srv/hts-data`, backup bằng `sudo bash deploy.sh backup`.
-- Kiểm tra script deploy: `pnpm test:deploy`; Docker integration tùy chọn ở `tests/deploy-smoke.py`, tách khỏi thao tác vận hành hằng ngày.
+- **Cập nhật thường ngày:** LOCAL sửa trực tiếp hai dòng `image` (tên Docker Hub và tag) trong `compose.build.yaml`, rồi build/push đa kiến trúc bằng `docker compose -f compose.build.yaml build --builder hts-multi --push`; VPS đổi `HTS_IMAGE_TAG` trong `.env`, chạy `docker compose pull` rồi `docker compose up -d --wait`. Migration chưa áp dụng sẽ tự chạy trước backend.
+- Build/push dùng `compose.build.yaml`; khởi tạo cấu hình/secret một lần bằng `scripts/setup-deploy.js` trong backend image. Tạo admin bằng `POST /api/auth/bootstrap-admin` với header `X-Bootstrap-Token` lấy từ `.env`; chỉ khởi tạo được một lần.
+- Dữ liệu mặc định ở `./data/` cạnh compose.yaml; backup bằng `docker compose run --rm backup`. Cách chạy local giống server, mặc định cổng 3180 do setup tạo.
+- Hướng dẫn: [docs/DEPLOY_VPS_DOCKER.md](docs/DEPLOY_VPS_DOCKER.md), bước 1–9 cho cài lần đầu, phần “Cập nhật phiên bản” cho những lần sau; có phần chạy thử trên local và bảng xử lý lỗi đăng nhập Docker, thiếu .env, sai kiến trúc, quyền data/.
+- Kiểm tra: `pnpm test:deploy`; Docker integration riêng ở `tests/deploy-smoke.py`.
